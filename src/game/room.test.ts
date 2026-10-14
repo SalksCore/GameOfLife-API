@@ -15,6 +15,7 @@ function setup(maxPlayers = 10) {
     changed: () => {},
     gameEnded: (r) => ended.push(r),
     leave: (id) => room.leave(id, 'retiré'),
+    live: () => {},
   };
   const room: Room = new Room(
     { id: randomUUID(), code: 'ABC234', name: 'Test', maxPlayers, createdBy: randomUUID(), createdByName: 'admin' },

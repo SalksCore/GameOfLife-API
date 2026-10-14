@@ -34,7 +34,7 @@ export class RoomManager {
   private readonly sweeper: NodeJS.Timeout;
 
   constructor(
-    private readonly output: Omit<RoomOutput, 'leave'>,
+    private readonly output: Omit<RoomOutput, 'leave' | 'live'> & { live(roomId: string): void },
     private readonly limits: ManagerLimits,
     private readonly timings?: RoomTimings,
   ) {
@@ -74,9 +74,14 @@ export class RoomManager {
     let code = generateCode();
     while (this.roomByCode.has(code)) code = generateCode();
 
+    const id = randomUUID();
     const room = new Room(
-      { id: randomUUID(), code, ...input },
-      { ...this.output, leave: (playerId) => this.leave(playerId, 'Tu as été retiré de la partie') },
+      { id, code, ...input },
+      {
+        ...this.output,
+        leave: (playerId) => this.leave(playerId, 'Tu as été retiré de la partie'),
+        live: () => this.output.live(id),
+      },
       this.timings,
     );
     this.rooms.set(room.id, room);

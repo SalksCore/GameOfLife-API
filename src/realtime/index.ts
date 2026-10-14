@@ -10,7 +10,9 @@ import { db } from '../db/client.js';
 import { gamePlayers, games, players, statsSnapshots } from '../db/schema.js';
 import {
   CODE_ALPHABET,
+  DISTRIBUTIONS,
   LIMITS,
+  SOCIAL_CLASSES,
   normalizeCode,
   type Ack,
   type AdminClientToServerEvents,
@@ -51,7 +53,26 @@ const schemas = {
   }),
   roomId: z.object({ roomId: uuid }),
   kick: z.object({ roomId: uuid, playerId: uuid }),
+  choose: z.object({ optionId: z.string().min(1).max(40) }),
+  setRole: z.object({ roomId: uuid, playerId: uuid, role: z.enum(SOCIAL_CLASSES).nullable() }),
+  configure: z.object({
+    roomId: uuid,
+    config: z
+      .object({
+        stageMinutes: z.number().int().min(LIMITS.stageMinutesMin).max(LIMITS.stageMinutesMax),
+        distribution: z.enum(Object.keys(DISTRIBUTIONS) as [keyof typeof DISTRIBUTIONS]),
+      })
+      .partial(),
+  }),
+  gameControl: z.object({ roomId: uuid, action: z.enum(['pause', 'resume', 'skip', 'reroll', 'nextStage']) }),
+  give: z.object({
+    roomId: uuid,
+    target: z.union([z.literal('all'), z.enum(SOCIAL_CLASSES.map((c) => `class:${c}`) as [string, ...string[]]), uuid]),
+    amount: z.number().int().min(-LIMITS.giveMax).max(LIMITS.giveMax),
+  }),
+  event: z.object({ roomId: uuid, eventId: z.string().min(1).max(40) }),
 };
+const watchRoom = (roomId: string) => `watch:${roomId}`;
 
 function isAllowedOrigin(req: IncomingMessage): boolean {
   const origin = req.headers.origin;
@@ -87,7 +108,23 @@ export function createRealtime(log: Logger) {
     }, 200);
   };
 
+  // Écrans et régies suivant une partie : mises à jour regroupées (≈ 7 par seconde au maximum)
+  const liveTimers = new Map<string, NodeJS.Timeout>();
+  const pushLive = (roomId: string) => {
+    if (liveTimers.has(roomId)) return;
+    liveTimers.set(
+      roomId,
+      setTimeout(() => {
+        liveTimers.delete(roomId);
+        const room = manager.get(roomId);
+        if (!room) return;
+        admin.to(watchRoom(roomId)).emit('admin:live', { roomId, screen: room.screenView(), control: room.controlView() });
+      }, 150),
+    );
+  };
+
   const manager = new RoomManager({
+    live: pushLive,
     state: (playerId, view) => io.to(playerRoom(playerId)).emit('room:state', view),
     chat: (playerIds, msg) => {
       if (playerIds.length) io.to(playerIds.map(playerRoom)).emit('chat:message', msg);
@@ -204,6 +241,15 @@ export function createRealtime(log: Logger) {
       ),
     );
 
+    socket.on(
+      'game:choose',
+      handle(socket, schemas.choose, ({ optionId }) => {
+        const room = manager.roomOf(me.id);
+        if (!room?.game) return result('Aucune partie en cours');
+        return result(room.game.choose(me.id, optionId));
+      }),
+    );
+
     socket.on('disconnect', () => {
       // Si une nouvelle session a déjà pris le relais, ne rien faire
       const stillOnline = (io.sockets.adapter.rooms.get(playerRoom(me.id))?.size ?? 0) > 0;
@@ -269,6 +315,57 @@ export function createRealtime(log: Logger) {
         }),
       ),
     );
+    socket.on(
+      'admin:watch',
+      handle(socket, schemas.roomId, ({ roomId }) => {
+        const room = manager.get(roomId);
+        if (!room) return { ok: false, error: 'Partie introuvable' };
+        void socket.join(watchRoom(roomId));
+        return { ok: true, data: { roomId, screen: room.screenView(), control: room.controlView() } };
+      }),
+    );
+    socket.on(
+      'admin:unwatch',
+      handle(socket, schemas.roomId, ({ roomId }) => {
+        void socket.leave(watchRoom(roomId));
+        return result(null);
+      }),
+    );
+    socket.on(
+      'admin:setRole',
+      handle(socket, schemas.setRole, ({ roomId, playerId, role }) => {
+        const room = manager.get(roomId);
+        return result(room ? room.setRole(playerId, role) : 'Partie introuvable');
+      }),
+    );
+    socket.on(
+      'admin:configure',
+      handle(socket, schemas.configure, ({ roomId, config }) => {
+        const room = manager.get(roomId);
+        return result(room ? room.configure(config) : 'Partie introuvable');
+      }),
+    );
+    socket.on(
+      'admin:gameControl',
+      handle(socket, schemas.gameControl, ({ roomId, action }) => {
+        const room = manager.get(roomId);
+        if (!room?.game) return result('Aucune partie en cours');
+        return result(room.game.control(action));
+      }),
+    );
+    socket.on(
+      'admin:give',
+      handle(socket, schemas.give, ({ roomId, target, amount }) =>
+        onRoom(roomId, 'game.give', (r) => (r.game ? r.game.give(target, amount) : 'Aucune partie en cours')),
+      ),
+    );
+    socket.on(
+      'admin:event',
+      handle(socket, schemas.event, ({ roomId, eventId }) =>
+        onRoom(roomId, 'game.event', (r) => (r.game ? r.game.event(eventId) : 'Aucune partie en cours')),
+      ),
+    );
+
     socket.on(
       'admin:kick',
       handle(socket, schemas.kick, ({ roomId, playerId }) => {
@@ -385,6 +482,8 @@ export function createRealtime(log: Logger) {
   }
 
   function close() {
+    for (const t of liveTimers.values()) clearTimeout(t);
+    liveTimers.clear();
     clearInterval(statsTimer);
     clearInterval(snapshotTimer);
     settingsEvents.off('maintenance', onMaintenance);

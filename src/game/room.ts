@@ -1,5 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import type { AdminRoom, ChatMessage, Phase, RoomView } from './protocol.js';
+import { LifeGame, type Timings } from './life/engine.js';
+import { GAME_EVENTS } from './life/content.js';
+import {
+  DEFAULT_GAME_CONFIG,
+  type AdminRoom,
+  type ChatMessage,
+  type ControlView,
+  type GameConfig,
+  type Phase,
+  type RoomView,
+  type ScreenView,
+  type SocialClass,
+} from './protocol.js';
 
 export interface GameResult {
   code: string;
@@ -18,11 +30,15 @@ export interface RoomOutput {
   gameEnded(result: GameResult): void;
   /** Demande au gestionnaire de retirer le joueur (garde la table joueur -> partie cohérente) */
   leave(playerId: string): void;
+  /** L'écran projeté / la régie de cette partie doivent être rafraîchis */
+  live(): void;
 }
 
 export interface RoomTimings {
   /** Salle d'attente : délai de reconnexion avant de retirer un joueur (réseau mobile instable) */
   lobbyGrace: number;
+  /** Durées du jeu (tests) */
+  game?: Partial<Timings>;
 }
 
 export const DEFAULT_TIMINGS: RoomTimings = { lobbyGrace: 15_000 };
@@ -60,6 +76,10 @@ export class Room {
   private readonly members = new Map<string, Member>();
   private readonly leaveTimers = new Map<string, NodeJS.Timeout>();
   private closed = false;
+  /** Classes imposées par la régie avant le lancement (absent = tirage au sort) */
+  private readonly roles = new Map<string, SocialClass>();
+  private config: GameConfig = { ...DEFAULT_GAME_CONFIG };
+  game: LifeGame | null = null;
 
   constructor(
     readonly info: RoomInit,
@@ -104,6 +124,41 @@ export class Room {
       })),
       startedAt: this.startedAt?.getTime() ?? null,
       now: Date.now(),
+      game: this.game?.playerView(playerId) ?? null,
+    };
+  }
+
+  /** Écran projeté : salle d'attente puis plateau de jeu */
+  screenView(): ScreenView {
+    return {
+      roomId: this.id,
+      code: this.code,
+      name: this.info.name,
+      phase: this.phase,
+      now: Date.now(),
+      maxPlayers: this.info.maxPlayers,
+      lobby: [...this.members.values()].map(({ id, displayName, avatar, color, connected }) => ({
+        id,
+        displayName,
+        avatar,
+        color,
+        connected,
+      })),
+      board: this.game?.boardView() ?? null,
+    };
+  }
+
+  /** Régie : configuration, classes imposées, situation suivante, choix en cours */
+  controlView(): ControlView {
+    const roles: Record<string, SocialClass | null> = {};
+    for (const id of this.members.keys()) roles[id] = this.roles.get(id) ?? null;
+    const live = this.game?.controlView();
+    return {
+      config: { ...this.config },
+      roles,
+      upcoming: live?.upcoming ?? null,
+      choices: live?.choices ?? {},
+      events: GAME_EVENTS.map(({ id, emoji, label, description }) => ({ id, emoji, label, description })),
     };
   }
 
@@ -137,6 +192,7 @@ export class Room {
       // Reconnexion : l'apparence a pu changer entre-temps
       Object.assign(existing, player);
       existing.connected = true;
+      this.game?.touchMember(existing);
       this.cancelLeaveTimer(player.id);
       this.touch();
       return null;
@@ -156,6 +212,7 @@ export class Room {
     if (!m) return;
     this.cancelLeaveTimer(playerId);
     this.members.delete(playerId);
+    this.roles.delete(playerId);
     this.out.state(playerId, null);
     if (notice) this.out.notice(playerId, notice);
     this.system(`${m.displayName} a quitté la partie`);
@@ -199,19 +256,60 @@ export class Room {
 
   // ---------- Pilotage (admin) ----------
 
+  setRole(playerId: string, role: SocialClass | null): Result {
+    if (this.phase !== 'lobby') return 'Les classes sont déjà attribuées';
+    if (!this.members.has(playerId)) return 'Joueur absent de cette partie';
+    if (role) this.roles.set(playerId, role);
+    else this.roles.delete(playerId);
+    this.out.live();
+    return null;
+  }
+
+  configure(config: Partial<GameConfig>): Result {
+    if (this.phase !== 'lobby') return 'La partie est déjà lancée';
+    this.config = { ...this.config, ...config };
+    this.out.live();
+    return null;
+  }
+
   start(): Result {
     if (this.phase !== 'lobby') return 'La partie n’est pas en salle d’attente';
     if (this.members.size === 0) return 'Aucun joueur dans la partie';
     this.phase = 'playing';
     this.startedAt = new Date();
+    this.game = new LifeGame(
+      [...this.members.values()],
+      new Map(this.roles),
+      this.config,
+      () => this.members,
+      {
+        players: (ids) => {
+          if (this.closed) return;
+          for (const id of ids ?? this.members.keys()) {
+            if (this.members.has(id)) this.out.state(id, this.viewFor(id));
+          }
+        },
+        board: () => this.out.live(),
+        finished: () => this.markEnded(),
+      },
+      { timings: this.timings.game },
+    );
     this.system('🚀 La partie commence !');
-    // TODO règles du jeu : initialiser l'état de jeu ici
     this.touch();
+    this.game.start();
     return null;
   }
 
+  /** Fin anticipée par la régie : le jeu passe directement à la pyramide */
   end(): Result {
     if (this.phase !== 'playing') return 'La partie n’est pas en cours';
+    if (this.game && !this.game.isFinished) this.game.finish();
+    else this.markEnded();
+    return null;
+  }
+
+  private markEnded(): void {
+    if (this.phase === 'ended') return;
     this.phase = 'ended';
     this.system('🏁 La partie est terminée. Merci d’avoir joué !');
     this.out.gameEnded({
@@ -222,7 +320,6 @@ export class Room {
       playerIds: this.memberIds(),
     });
     this.touch();
-    return null;
   }
 
   kick(playerId: string): Result {
@@ -234,6 +331,7 @@ export class Room {
   close(reason: string): void {
     if (this.closed) return;
     this.closed = true;
+    this.game?.dispose();
     for (const t of this.leaveTimers.values()) clearTimeout(t);
     this.leaveTimers.clear();
     for (const id of this.memberIds()) {
@@ -251,6 +349,7 @@ export class Room {
     if (this.closed) return;
     for (const id of this.members.keys()) this.out.state(id, this.viewFor(id));
     this.out.changed();
+    this.out.live();
   }
 
   private cancelLeaveTimer(playerId: string): void {
