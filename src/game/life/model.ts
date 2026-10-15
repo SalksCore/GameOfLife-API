@@ -81,8 +81,10 @@ export interface LifePlayer {
   raise: number;
   titles: string[];
   score: number;
-  /** Score au tour précédent (tendance affichée à l'écran) */
+  /** Score avant le dernier changement (tendance affichée à l'écran) */
   prevScore: number;
+  /** Lieu de la scène où se trouve le joueur */
+  place: string;
 }
 
 const START: Record<SocialClass, Capitals> = {
@@ -114,6 +116,7 @@ export function newPlayer(id: string, origin: SocialClass, rnd: () => number): L
     titles: [],
     score: 0,
     prevScore: 0,
+    place: 'maison',
   };
   refresh(p);
   p.prevScore = p.score;
@@ -230,6 +233,22 @@ export interface Option {
   requires?: (p: LifePlayer) => string | null;
   /** Option appliquée quand le joueur ne répond pas */
   fallback?: boolean;
+  resolve: (p: LifePlayer, ctx: Ctx) => Outcome;
+}
+
+/** Activité d'un lieu : elle prend du temps, puis ses effets s'appliquent */
+export interface Action {
+  id: string;
+  place: string;
+  emoji: string;
+  label: string;
+  /** Durée en secondes */
+  seconds: number;
+  hint?: string;
+  /** Coût en euros, payé au lancement (famille selon la classe d'origine, hors monde du travail) */
+  cost?: number;
+  show?: (p: LifePlayer) => boolean;
+  requires?: (p: LifePlayer) => string | null;
   resolve: (p: LifePlayer, ctx: Ctx) => Outcome;
 }
 

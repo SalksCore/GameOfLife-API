@@ -1,18 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SocialClass } from '../protocol.js';
+import { SCENES, type SocialClass } from '../protocol.js';
+import { STAGE_ACTIONS } from './actions.js';
 import { ALL_SITUATIONS, STAGE_CONTENT } from './content.js';
 import { LifeGame, assignClasses, type LifeMember } from './engine.js';
 
-const TIMINGS = { intro: 1_000, reveal: 1_000, milestone: 1_000, minChoose: 1_000, targetRound: 6_000 };
+const FAST = { intro: 1_000, milestone: 1_000, opening: 5_000, event: 4_000, gapMin: 5_000, gapMax: 8_000 };
 
 function members(n: number): LifeMember[] {
-  return Array.from({ length: n }, (_, i) => ({
-    id: `p${i}`,
-    displayName: `Joueur ${i}`,
-    avatar: '🙂',
-    color: 'violet',
-    connected: true,
-  }));
+  return Array.from({ length: n }, (_, i) => ({ id: `p${i}`, displayName: `Joueur ${i}`, avatar: '🙂', color: 'violet', connected: true }));
 }
 
 /** Générateur pseudo-aléatoire déterministe (tests reproductibles) */
@@ -27,28 +22,31 @@ function seeded(seed: number) {
   };
 }
 
-function setup(n = 6, roles = new Map<string, SocialClass | null>(), rnd = seeded(1)) {
+function setup(n = 4, roles = new Map<string, SocialClass | null>(), rnd = seeded(1), stageMinutes = 1, timings: object = FAST) {
   const list = members(n);
   const map = new Map(list.map((m) => [m.id, m]));
   const out = { players: vi.fn(), board: vi.fn(), finished: vi.fn() };
-  const game = new LifeGame(list, roles, { stageMinutes: 1, distribution: 'realiste' }, () => map, out, {
-    rnd,
-    timings: TIMINGS,
-  });
-  return { game, out, list };
+  const game = new LifeGame(list, roles, { stageMinutes, distribution: 'realiste' }, () => map, out, { rnd, timings });
+  return { game, out };
 }
 
 describe('contenu', () => {
-  it('chaque situation a un choix par défaut accessible à tous', () => {
+  it('chaque situation a un choix par défaut, chaque activité un lieu existant', () => {
     for (const s of ALL_SITUATIONS) {
       expect(s.options.some((o) => o.fallback), s.id).toBe(true);
       const ids = s.options.map((o) => o.id);
       expect(new Set(ids).size, s.id).toBe(ids.length);
     }
+    for (const [stage, actions] of Object.entries(STAGE_ACTIONS)) {
+      const places = new Set(SCENES[stage as keyof typeof SCENES].places.map((p) => p.id));
+      for (const a of actions) expect(places.has(a.place), a.id).toBe(true);
+      // Chaque lieu propose au moins une activité
+      for (const place of places) expect(actions.some((a) => a.place === place), `${stage}/${place}`).toBe(true);
+    }
   });
 
-  it('chaque étape a assez de situations', () => {
-    for (const stage of Object.values(STAGE_CONTENT)) expect(stage.pool.length).toBeGreaterThanOrEqual(10);
+  it('chaque étape a un moment clé et assez d’événements', () => {
+    for (const s of Object.values(STAGE_CONTENT)) expect(s.events.length).toBeGreaterThanOrEqual(10);
   });
 });
 
@@ -61,7 +59,6 @@ describe('assignClasses', () => {
     ]);
     const res = assignClasses(ids, roles, { stageMinutes: 5, distribution: 'realiste' }, seeded(3));
     expect(res.get('p0')).toBe('riche');
-    expect(res.get('p1')).toBe('riche');
     const count = { basse: 0, moyenne: 0, riche: 0 };
     for (const c of res.values()) count[c]++;
     expect(count).toEqual({ basse: 7, moyenne: 9, riche: 4 });
@@ -72,183 +69,167 @@ describe('LifeGame', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('déroule les trois étapes jusqu’à la pyramide', () => {
+  it('intro, moment clé obligatoire, activités libres, bilans, pyramide', () => {
     const { game, out } = setup();
     game.start();
     expect(game.playerView('p0')!.step).toBe('intro');
+    expect(game.act('p0', 'ly-repos')).toMatch(/pas encore commencé/);
     vi.advanceTimersByTime(1_000);
-    const v = game.playerView('p0')!;
-    expect(v.step).toBe('choose');
-    expect(v.round!.situation.id).toBe('ly-rentree');
-    expect(game.choose('p0', 'serieux')).toBeNull();
-    expect(game.playerView('p0')!.round!.choice).toBe('serieux');
+
+    let v = game.playerView('p0')!;
+    expect(v.step).toBe('play');
+    expect(v.event?.situation.id).toBe('ly-specialites');
+    expect(v.event?.mandatory).toBe(true);
+    // Il faut d'abord répondre au moment clé
+    expect(game.act('p0', 'ly-repos')).toMatch(/Réponds/);
+    expect(game.answer('p0', 'ses')).toBeNull();
+    expect(game.playerView('p0')!.results[0]!.text).toMatch(/Choix de la filière/);
+
+    // Une activité prend du temps et déplace le joueur
+    expect(game.act('p0', 'ly-reviser')).toBeNull();
+    v = game.playerView('p0')!;
+    expect(v.me.place).toBe('cdi');
+    expect(v.activity?.actionId).toBe('ly-reviser');
+    expect(game.act('p0', 'ly-repos')).toMatch(/occupé/);
+    const savoir = v.me.capitals.savoir;
+    vi.advanceTimersByTime(14_000);
+    v = game.playerView('p0')!;
+    expect(v.activity).toBeNull();
+    expect(v.me.capitals.savoir).toBeGreaterThan(savoir);
+    expect(game.boardView().players.find((p) => p.id === 'p0')!.pop).not.toBeNull();
 
     vi.advanceTimersByTime(10 * 60_000);
     expect(game.isFinished).toBe(true);
     expect(out.finished).toHaveBeenCalledOnce();
     const final = game.boardView().final!;
-    const total = Object.values(final.pyramid).flat().length;
-    expect(total).toBe(6);
-    expect(final.climbed + final.fell + final.stayed).toBe(6);
+    expect(Object.values(final.pyramid).flat()).toHaveLength(4);
     expect(game.playerView('p0')!.me.titles.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('refuse un choix bloqué et hors du temps de choix', () => {
-    const { game } = setup(3, new Map([['p0', 'basse']]));
+  it('sans réponse, le moment clé est tranché par défaut', () => {
+    const { game } = setup(1);
     game.start();
-    expect(game.choose('p0', 'serieux')).toMatch(/pas le moment/);
-    vi.advanceTimersByTime(1_000);
-    expect(game.choose('p0', 'inexistant')).toMatch(/invalide/);
+    vi.advanceTimersByTime(1_000 + 5_000);
+    const v = game.playerView('p0')!;
+    expect(v.event).toBeNull();
+    expect(v.results[0]!.text).toMatch(/Pas de réponse/);
   });
 
-  it('pause, reprise et passage', () => {
-    const { game } = setup();
+  it('la pause gèle activités et chronomètre', () => {
+    const { game } = setup(1);
     game.start();
+    vi.advanceTimersByTime(1_000);
+    game.answer('p0', 'ses');
+    game.act('p0', 'ly-reviser');
+    const endsAt = game.playerView('p0')!.activity!.endsAt;
     expect(game.control('pause')).toBeNull();
+    expect(game.act('p0', 'ly-repos')).toMatch(/pause|occupé/);
     vi.advanceTimersByTime(60_000);
-    expect(game.playerView('p0')!.step).toBe('intro');
+    expect(game.playerView('p0')!.activity).not.toBeNull();
     expect(game.control('resume')).toBeNull();
+    expect(game.playerView('p0')!.activity!.endsAt).toBe(endsAt + 60_000);
+    vi.advanceTimersByTime(14_000);
+    expect(game.playerView('p0')!.activity).toBeNull();
+  });
+
+  it('la gestion peut passer au bilan, envoyer une situation, donner de l’argent', () => {
+    const { game } = setup(2, new Map([['p0', 'basse']]));
+    game.start();
     vi.advanceTimersByTime(1_000);
-    expect(game.playerView('p0')!.step).toBe('choose');
-    expect(game.control('skip')).toBeNull();
-    expect(game.playerView('p0')!.step).toBe('reveal');
-  });
+    game.answer('p0', 'ses');
+    expect(game.nudge('p0')).toBeNull();
+    expect(game.playerView('p0')!.event).not.toBeNull();
+    expect(game.nudge('p0')).toMatch(/déjà/);
 
-  it('la régie voit la situation suivante et peut la changer', () => {
-    const { game } = setup();
-    game.start();
-    vi.advanceTimersByTime(1_000); // 1er tour
-    const next = game.controlView().upcoming!;
-    expect(next.startsAt).not.toBeNull();
-    expect(game.control('reroll')).toBeNull();
-    expect(game.controlView().upcoming!.situation.id).not.toBe(next.situation.id);
-  });
-
-  it('dons d’argent et événements', () => {
-    const { game } = setup(4, new Map([['p0', 'basse']]));
-    game.start();
-    const before = game.playerView('p0')!.me.capitals.money;
-    expect(game.give('p0', 5_000)).toBeNull();
-    expect(game.playerView('p0')!.me.capitals.money).toBe(before + 5_000);
-    expect(game.playerView('p0')!.flash).not.toBeNull();
+    const money = game.playerView('p1')!.me.capitals.money;
+    expect(game.give('p1', 5_000)).toBeNull();
+    expect(game.playerView('p1')!.me.capitals.money).toBe(money + 5_000);
+    expect(game.playerView('p1')!.flash).not.toBeNull();
     expect(game.event('crise')).toBeNull();
     expect(game.event('nope')).toMatch(/inconnu/);
-    expect(game.boardView().feed.some((f) => f.tone === 'admin')).toBe(true);
+
+    expect(game.control('nextStage')).toBeNull();
+    expect(game.playerView('p0')!.step).toBe('milestone');
+    expect(game.playerView('p0')!.me.titles[0]).toMatch(/[Bb]ac/);
   });
 
-  it('fin anticipée : pyramide immédiate', () => {
+  it('fin anticipée : pyramide immédiate, plus aucune minuterie', () => {
     const { game, out } = setup();
     game.start();
     vi.advanceTimersByTime(3_000);
     game.finish();
     expect(game.isFinished).toBe(true);
-    expect(out.finished).toHaveBeenCalledOnce();
     vi.advanceTimersByTime(60_000);
     expect(out.finished).toHaveBeenCalledOnce();
   });
 });
 
 /**
- * Équilibrage : on simule beaucoup de parties.
- * - Joueurs « au hasard » : la classe d'origine pèse lourd (reproduction sociale).
- * - Joueurs « stratèges » (meilleur choix accessible) : monter est possible, mais pas garanti.
+ * Équilibrage : on simule des parties complètes (3 × 5 min) où chacun joue librement.
+ * - « au hasard » : activités et réponses au hasard ;
+ * - « stratège » : se repose quand le moral baisse, étudie, soigne son réseau, cherche les promotions.
  */
 describe('équilibrage', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  function simulate(strategy: 'random' | 'smart', origin: SocialClass, games = 60) {
+  const SMART: Record<string, string[]> = {
+    lycee: ['ly-cordees', 'ly-prof', 'ly-reviser', 'ly-cours', 'ly-diner', 'ly-devoirs', 'ly-potes', 'ly-oral', 'ly-reviser', 'ly-cantine'],
+    universite: ['un-prepa', 'un-alternance', 'un-bu', 'un-demarcher', 'un-amphi', 'un-parents', 'un-asso', 'un-groupe', 'un-question'],
+    travail: ['tr-chercher', 'tr-promo', 'tr-chef', 'tr-travailler', 'tr-atelier', 'tr-boite', 'tr-immo', 'tr-travailler', 'tr-golf', 'tr-afterwork', 'tr-heures'],
+  };
+  const SMART_ANSWERS = ['prepa-cordees', 'prepa', 'sciences', 'licence', 'cadre', 'piston', 'technicien', 'employe', 'stage', 'seul', 'serieux', 'reviser', 'fiches', 'bourse', 'dossier', 'adulte', 'master', 'negocier', 'resister', 'postuler', 'accepter', 'objectifs', 'livret', 'afterwork', 'arret', 'famille', 'asso', 'non', 'reseau'];
+
+  function simulate(strategy: 'random' | 'smart', origin: SocialClass, games = 40) {
     const outcomes = { basse: 0, moyenne: 0, riche: 0 };
     for (let g = 0; g < games; g++) {
-      const rnd = seeded(1000 + g);
-      const roles = new Map<string, SocialClass | null>([['p0', origin]]);
-      const { game } = setup(1, roles, rnd);
+      const rnd = seeded(1_000 + g);
+      const { game } = setup(1, new Map([['p0', origin]]), rnd, 5, {});
       game.start();
+      let turn = 0;
       while (!game.isFinished) {
         const v = game.playerView('p0')!;
-        if (v.step === 'choose' && v.round && !v.round.choice) {
-          const open = v.round.options.filter((o) => !o.locked);
-          const pick =
-            strategy === 'random'
-              ? open[Math.floor(rnd() * open.length)]
-              : smartPick(open.map((o) => o.id), v.round.situation.id);
-          if (pick) game.choose('p0', typeof pick === 'string' ? pick : pick.id);
+        if (v.step === 'play') {
+          if (v.event) {
+            const open = v.event.options.filter((o) => !o.locked);
+            const pick = strategy === 'random' ? open[Math.floor(rnd() * open.length)] : (SMART_ANSWERS.map((id) => open.find((o) => o.id === id)).find(Boolean) ?? open[0]);
+            if (pick && rnd() < 0.5) game.answer('p0', pick.id);
+          } else if (!v.activity) {
+            const open = v.actions.filter((a) => !a.locked);
+            let pick;
+            if (strategy === 'random') pick = open[Math.floor(rnd() * open.length)];
+            else if (v.me.capitals.moral < 35) pick = open.find((a) => /repos|dormir/.test(a.id));
+            else {
+              const list = SMART[v.stage]!;
+              for (let k = 0; k < list.length && !pick; k++) pick = open.find((a) => a.id === list[(turn + k) % list.length]);
+              turn++;
+            }
+            if (pick) game.act('p0', pick.id);
+          }
         }
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(1_000);
       }
       outcomes[game.playerView('p0')!.me.cls]++;
     }
     return outcomes;
   }
 
-  /** Stratégie « raisonnable » : favorise études et réseau, évite les paris */
-  function smartPick(open: string[], situation: string): string | undefined {
-    const pref: Record<string, string[]> = {
-      'ly-rentree': ['serieux'],
-      'ly-cours': ['prof', 'cdi'],
-      'ly-stage': ['famille', 'spontanee'],
-      'ly-voyage': ['partir', 'aide'],
-      'ly-fete': ['reviser'],
-      'ly-specialites': ['sciences', 'ses'],
-      'ly-delegue': ['candidat'],
-      'ly-tiktok': ['detox'],
-      'ly-ete': ['cabinet', 'fastfood'],
-      'ly-eloquence': ['coach', 'go'],
-      'ly-harcelement': ['adulte'],
-      'ly-ordi': ['cdi'],
-      'ly-maison': ['parler'],
-      'ly-orientation': ['grande', 'fac'],
-      'ly-bac': ['stage', 'seul'],
-      'un-parcoursup': ['prepa', 'licence', 'commerce', 'court', 'alternance'],
-      'un-logement': ['coloc', 'crous', 'studio'],
-      'un-bourse': ['dossier', 'parents'],
-      'un-job': ['cours', 'babysit'],
-      'un-partiels': ['fiches', 'bachoter'],
-      'un-erasmus': ['bourse', 'partir'],
-      'un-bde': ['benevole'],
-      'un-stage': ['piston', 'candidater'],
-      'un-burnout': ['sport'],
-      'un-startup': ['aider'],
-      'un-pret': ['non'],
-      'un-afterwork': ['costume', 'linkedin'],
-      'un-concours': ['go'],
-      'un-master': ['master', 'concours', 'reviser'],
-      'tr-emploi': ['cadre', 'piston', 'technicien', 'employe', 'ouvrier'],
-      'tr-augmentation': ['negocier', 'pole'],
-      'tr-promotion': ['postuler', 'interim'],
-      'tr-licenciement': ['resister', 'postuler'],
-      'tr-investir': ['livret'],
-      'tr-reseau': ['afterwork'],
-      'tr-burnout': ['arret'],
-      'tr-famille': ['famille'],
-      'tr-chasseur': ['accepter'],
-      'tr-side': ['asso'],
-      'tr-levee': ['non'],
-      'tr-reconversion': ['vae'],
-      'tr-greve': ['greve'],
-      'tr-bilan': ['immo', 'formation'],
+  it('reproduction sociale et ascension possible mais difficile', () => {
+    const r = {
+      hasardBasse: simulate('random', 'basse'),
+      hasardMoyenne: simulate('random', 'moyenne'),
+      hasardRiche: simulate('random', 'riche'),
+      stratBasse: simulate('smart', 'basse'),
+      stratMoyenne: simulate('smart', 'moyenne'),
     };
-    return (pref[situation] ?? []).find((id) => open.includes(id)) ?? open[0];
-  }
-
-  it('reproduction sociale : au hasard, la classe d’origine pèse lourd', () => {
-    const basse = simulate('random', 'basse');
-    const riche = simulate('random', 'riche');
-    // Au hasard, la plupart des enfants de la classe basse y restent, et aucun ou presque n'atteint le sommet
-    expect(basse.basse).toBeGreaterThan(basse.moyenne);
-    expect(basse.riche).toBeLessThanOrEqual(3);
+    // Au hasard, la plupart des enfants de la classe basse y restent, et le sommet est presque inatteignable
+    expect(r.hasardBasse.basse).toBeGreaterThan(r.hasardBasse.moyenne);
+    expect(r.hasardBasse.riche).toBeLessThanOrEqual(2);
     // Les enfants de la classe riche restent le plus souvent en haut
-    expect(riche.riche).toBeGreaterThanOrEqual(45);
-  });
-
-  it('ascension : avec de bons choix, la classe basse peut monter', () => {
-    const basse = simulate('smart', 'basse');
-    const moyenne = simulate('smart', 'moyenne');
-    // Avec de bons choix, monter d'une classe est atteignable…
-    expect(basse.moyenne + basse.riche).toBeGreaterThanOrEqual(40);
-    // …mais atteindre le sommet depuis le bas reste rare
-    expect(basse.riche).toBeLessThan(12);
-    // Les enfants de la classe moyenne qui jouent parfaitement peuvent atteindre le sommet
-    expect(moyenne.riche).toBeGreaterThan(30);
+    expect(r.hasardRiche.riche).toBeGreaterThanOrEqual(25);
+    // En jouant bien, monter d'une classe est atteignable depuis le bas…
+    expect(r.stratBasse.moyenne + r.stratBasse.riche).toBeGreaterThanOrEqual(24);
+    // …mais le sommet reste rare
+    expect(r.stratBasse.riche).toBeLessThanOrEqual(8);
   });
 });

@@ -40,7 +40,7 @@ export const CLASS_LABELS: Record<SocialClass, string> = {
 };
 
 /** Position sociale (0-100) à partir de laquelle on entre dans chaque classe */
-export const CLASS_THRESHOLDS = { moyenne: 38, riche: 68 } as const;
+export const CLASS_THRESHOLDS = { moyenne: 42, riche: 70 } as const;
 
 export type Stage = 'lycee' | 'universite' | 'travail';
 export const STAGES: readonly Stage[] = ['lycee', 'universite', 'travail'];
@@ -78,11 +78,62 @@ export interface Capitals {
 }
 
 /**
- * Déroulé d'une étape : intro -> (choose -> reveal) × N -> milestone.
+ * Déroulé d'une étape (commun à tous) : intro -> play (temps libre) -> milestone (bilan).
+ * Pendant « play », chacun joue à son rythme : il va dans les lieux de la scène, lance des activités
+ * qui prennent du temps, et reçoit des événements de vie personnels.
  * final = pyramide de fin de partie.
  */
-export type GameStep = 'intro' | 'choose' | 'reveal' | 'milestone' | 'final';
+export type GameStep = 'intro' | 'play' | 'milestone' | 'final';
 export type Tone = 'good' | 'bad' | 'neutral';
+
+/** Lieu d'une scène : position (en % de l'illustration) où se tiennent les avatars */
+export interface PlaceInfo {
+  id: string;
+  name: string;
+  emoji: string;
+  /** Point d'ancrage au sol, en % de la largeur et de la hauteur de la scène */
+  x: number;
+  y: number;
+}
+
+/** Les trois scènes (illustrations public/scenes/<étape>.svg, 1600 × 900) */
+export const SCENES: Record<Stage, { title: string; places: PlaceInfo[] }> = {
+  lycee: {
+    title: 'Le lycée',
+    places: [
+      { id: 'maison', name: 'Maison', emoji: '🏠', x: 7, y: 80 },
+      { id: 'classe', name: 'Salle de classe', emoji: '📚', x: 30, y: 78 },
+      { id: 'cdi', name: 'CDI', emoji: '📖', x: 49, y: 79 },
+      { id: 'cour', name: 'La cour', emoji: '🌳', x: 40, y: 92 },
+      { id: 'gymnase', name: 'Gymnase', emoji: '🏀', x: 66, y: 80 },
+      { id: 'cantine', name: 'Cantine', emoji: '🍽️', x: 64, y: 93 },
+      { id: 'boulot', name: 'Fast-food', emoji: '🍔', x: 88, y: 81 },
+    ],
+  },
+  universite: {
+    title: 'Le campus',
+    places: [
+      { id: 'residence', name: 'Logement', emoji: '🛏️', x: 8, y: 80 },
+      { id: 'amphi', name: 'Amphithéâtre', emoji: '🏛️', x: 29, y: 80 },
+      { id: 'bu', name: 'Bibliothèque', emoji: '📚', x: 50, y: 80 },
+      { id: 'bde', name: 'Bar du BDE', emoji: '🎉', x: 41, y: 93 },
+      { id: 'job', name: 'Supermarché', emoji: '🛒', x: 69, y: 81 },
+      { id: 'entreprise', name: 'Entreprises', emoji: '🏢', x: 89, y: 80 },
+    ],
+  },
+  travail: {
+    title: 'La ville',
+    places: [
+      { id: 'maison', name: 'Maison', emoji: '🏠', x: 7, y: 81 },
+      { id: 'agence', name: 'Pôle emploi', emoji: '📋', x: 23, y: 82 },
+      { id: 'usine', name: 'Atelier', emoji: '🏭', x: 39, y: 80 },
+      { id: 'bureau', name: 'Bureaux', emoji: '🏙️', x: 57, y: 80 },
+      { id: 'banque', name: 'Banque', emoji: '🏦', x: 74, y: 81 },
+      { id: 'ecole', name: 'Cours du soir', emoji: '🎓', x: 48, y: 93 },
+      { id: 'club', name: 'Club & afterwork', emoji: '🥂', x: 90, y: 82 },
+    ],
+  },
+};
 
 export interface SituationView {
   id: string;
@@ -102,7 +153,20 @@ export interface OptionView {
   locked: string | null;
 }
 
-export interface RoundResult {
+/** Activité proposée dans un lieu */
+export interface ActionView {
+  id: string;
+  placeId: string;
+  emoji: string;
+  label: string;
+  /** Durée en secondes */
+  seconds: number;
+  hint: string;
+  locked: string | null;
+}
+
+export interface ResultView {
+  id: string;
   text: string;
   delta: Capitals;
   tone: Tone;
@@ -116,8 +180,6 @@ export interface PlayerGameView {
   /** Fin de l'étape en cours (heure serveur), null en pause */
   stepEndsAt: number | null;
   paused: boolean;
-  roundIndex: number;
-  roundCount: number;
   me: {
     origin: SocialClass;
     cls: SocialClass;
@@ -126,15 +188,19 @@ export interface PlayerGameView {
     capitals: Capitals;
     /** Diplômes et emploi obtenus, dans l'ordre */
     titles: string[];
+    /** Lieu où se trouve le joueur */
+    place: string;
   };
   /** Texte d'introduction d'étape ou de bilan (personnalisé) */
   story: { title: string; text: string } | null;
-  round: {
-    situation: SituationView;
-    options: OptionView[];
-    choice: string | null;
-    result: RoundResult | null;
-  } | null;
+  /** Activités de chaque lieu de la scène */
+  actions: ActionView[];
+  /** Activité en cours */
+  activity: { actionId: string; placeId: string; emoji: string; label: string; startedAt: number; endsAt: number } | null;
+  /** Événement de vie à traiter (prioritaire) */
+  event: { id: string; situation: SituationView; options: OptionView[]; endsAt: number | null; mandatory: boolean } | null;
+  /** Derniers résultats (le plus récent en premier) */
+  results: ResultView[];
   final: { rank: number; total: number; text: string } | null;
   /** Notification ponctuelle (argent donné par la régie, événement) */
   flash: { text: string } | null;
@@ -153,8 +219,13 @@ export interface BoardPlayer {
   capitals: Capitals;
   /** Dernier titre obtenu (bac, diplôme, emploi) */
   title: string | null;
-  answered: boolean;
-  /** Évolution au dernier tour */
+  place: string;
+  activity: { emoji: string; label: string; endsAt: number } | null;
+  /** Un événement attend sa réponse */
+  busy: boolean;
+  /** Dernier gain, affiché au-dessus de l'avatar */
+  pop: { id: string; text: string; tone: Tone } | null;
+  /** Évolution récente */
   trend: 'up' | 'down' | null;
 }
 
@@ -184,13 +255,7 @@ export interface BoardView {
   step: GameStep;
   stepEndsAt: number | null;
   paused: boolean;
-  roundIndex: number;
-  roundCount: number;
   story: { title: string; text: string } | null;
-  situation: SituationView | null;
-  options: { id: string; emoji: string; label: string; count: number }[];
-  answered: number;
-  total: number;
   players: BoardPlayer[];
   feed: FeedItem[];
   final: FinalView | null;
@@ -215,19 +280,17 @@ export interface GameEventInfo {
   description: string;
 }
 
-/** Régie (onglet « Régie » de l'admin) : ce que les joueurs ne voient pas */
+/** Régie : ce que les joueurs ne voient pas */
 export interface ControlView {
   config: GameConfig;
   /** Classe imposée avant le tirage au sort (null = aléatoire) */
   roles: Record<string, SocialClass | null>;
-  /** Prochaine situation, connue à l'avance */
-  upcoming: { situation: SituationView; options: string[]; startsAt: number | null } | null;
-  /** Choix en cours de chaque joueur (libellé) */
-  choices: Record<string, string | null>;
+  /** Événement de vie en attente de chaque joueur (titre) */
+  pending: Record<string, string | null>;
   events: GameEventInfo[];
 }
 
-export type GameControl = 'pause' | 'resume' | 'skip' | 'reroll' | 'nextStage';
+export type GameControl = 'pause' | 'resume' | 'nextStage';
 
 // ---------------------------------------------------------------- Salle
 
@@ -272,8 +335,12 @@ export interface ClientToServerEvents {
   'room:join': (input: { code: string }, cb: AckFn) => void;
   'room:leave': (cb: AckFn) => void;
   'chat:send': (input: { text: string }, cb: AckFn) => void;
-  /** Choix du joueur pour le tour en cours */
-  'game:choose': (input: { optionId: string }, cb: AckFn) => void;
+  /** Lance une activité (le joueur se rend dans le lieu correspondant) */
+  'game:act': (input: { actionId: string }, cb: AckFn) => void;
+  /** Interrompt l'activité en cours */
+  'game:cancel': (cb: AckFn) => void;
+  /** Répond à l'événement de vie en cours */
+  'game:answer': (input: { optionId: string }, cb: AckFn) => void;
 }
 
 export interface ServerToClientEvents {
@@ -336,6 +403,8 @@ export interface AdminClientToServerEvents {
   'admin:give': (input: { roomId: string; target: string; amount: number }, cb: AckFn) => void;
   /** Déclenche un événement (crise, héritage…) */
   'admin:event': (input: { roomId: string; eventId: string }, cb: AckFn) => void;
+  /** Envoie tout de suite un événement de vie à un joueur */
+  'admin:nudge': (input: { roomId: string; playerId: string }, cb: AckFn) => void;
 }
 
 export interface AdminServerToClientEvents {

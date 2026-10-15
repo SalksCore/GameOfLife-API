@@ -53,7 +53,8 @@ const schemas = {
   }),
   roomId: z.object({ roomId: uuid }),
   kick: z.object({ roomId: uuid, playerId: uuid }),
-  choose: z.object({ optionId: z.string().min(1).max(40) }),
+  act: z.object({ actionId: z.string().min(1).max(40) }),
+  answer: z.object({ optionId: z.string().min(1).max(40) }),
   setRole: z.object({ roomId: uuid, playerId: uuid, role: z.enum(SOCIAL_CLASSES).nullable() }),
   configure: z.object({
     roomId: uuid,
@@ -64,7 +65,7 @@ const schemas = {
       })
       .partial(),
   }),
-  gameControl: z.object({ roomId: uuid, action: z.enum(['pause', 'resume', 'skip', 'reroll', 'nextStage']) }),
+  gameControl: z.object({ roomId: uuid, action: z.enum(['pause', 'resume', 'nextStage']) }),
   give: z.object({
     roomId: uuid,
     target: z.union([z.literal('all'), z.enum(SOCIAL_CLASSES.map((c) => `class:${c}`) as [string, ...string[]]), uuid]),
@@ -241,14 +242,13 @@ export function createRealtime(log: Logger) {
       ),
     );
 
-    socket.on(
-      'game:choose',
-      handle(socket, schemas.choose, ({ optionId }) => {
-        const room = manager.roomOf(me.id);
-        if (!room?.game) return result('Aucune partie en cours');
-        return result(room.game.choose(me.id, optionId));
-      }),
-    );
+    const inGame = (fn: (game: NonNullable<Room['game']>) => string | null) => {
+      const room = manager.roomOf(me.id);
+      return result(room?.game ? fn(room.game) : 'Aucune partie en cours');
+    };
+    socket.on('game:act', handle(socket, schemas.act, ({ actionId }) => inGame((g) => g.act(me.id, actionId))));
+    socket.on('game:cancel', handle(socket, null, () => inGame((g) => g.cancel(me.id))));
+    socket.on('game:answer', handle(socket, schemas.answer, ({ optionId }) => inGame((g) => g.answer(me.id, optionId))));
 
     socket.on('disconnect', () => {
       // Si une nouvelle session a déjà pris le relais, ne rien faire
@@ -364,6 +364,14 @@ export function createRealtime(log: Logger) {
       handle(socket, schemas.event, ({ roomId, eventId }) =>
         onRoom(roomId, 'game.event', (r) => (r.game ? r.game.event(eventId) : 'Aucune partie en cours')),
       ),
+    );
+
+    socket.on(
+      'admin:nudge',
+      handle(socket, schemas.kick, ({ roomId, playerId }) => {
+        const room = manager.get(roomId);
+        return result(room?.game ? room.game.nudge(playerId) : 'Aucune partie en cours');
+      }),
     );
 
     socket.on(

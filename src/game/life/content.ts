@@ -63,7 +63,7 @@ export function promote(p: LifePlayer): Job | null {
   p.titles.push(JOB_LABEL[next]);
   return next;
 }
-function setJob(p: LifePlayer, job: Job) {
+export function setJob(p: LifePlayer, job: Job) {
   p.job = job;
   p.titles.push(JOB_LABEL[job]);
 }
@@ -271,6 +271,7 @@ const UNIV_FIRST: Situation = {
   title: 'Parcoursup',
   text: 'Les résultats tombent. Quelle voie choisis-tu après le bac ?',
   options: [
+    { id: 'prepa-cordees', emoji: '🪢', label: 'Prépa financée (Cordées de la réussite)', show: (p) => p.flags.has('cordees'), requires: both(needGeneralBac, needSavoir(50)), hint: 'Internat et bourse', resolve: () => good('Admis·e en prépa, logé·e à l’internat : tout est financé.', { savoir: 6, reseau: 4, moral: -4 }, { apply: (p) => (p.cursus = 'prepa'), feed: '🪢 {name} entre en prépa grâce aux Cordées de la réussite' }) },
     { id: 'prepa', emoji: '🏛️', label: 'Classe prépa (puis grande école)', requires: both(needGeneralBac, needSavoir(56)), hint: 'Très sélectif', cost: 1_500, resolve: () => good('Admis·e en prépa ! Deux années intenses commencent.', { savoir: 6, moral: -6 }, { apply: (p) => (p.cursus = 'prepa'), feed: '🏛️ {name} entre en classe prépa' }) },
     { id: 'commerce', emoji: '💎', label: 'École de commerce privée', requires: needBac, cost: 9_000, hint: 'Très cher', resolve: () => good('Bienvenue dans une école réputée… et chère.', { reseau: 14 }, { apply: (p) => (p.cursus = 'commerce') }) },
     { id: 'pret', emoji: '🏦', label: 'École de commerce avec un prêt étudiant', show: (p) => p.origin !== 'riche', requires: both(needBac, needSavoir(45)), hint: '−12 000 € de dette', resolve: () => meh('La banque te prête l’argent. Il faudra rembourser.', { money: -12_000, reseau: 14, moral: -4 }, { apply: (p) => (p.cursus = 'commerce'), feed: '🏦 {name} s’endette pour une école de commerce' }) },
@@ -640,13 +641,23 @@ const TRAVAIL_POOL: Situation[] = [
 
 // ================================================================= Étapes
 
-export const STAGE_CONTENT: Record<Stage, { first: Situation; pool: Situation[]; last: Situation }> = {
-  lycee: { first: LYCEE_FIRST, pool: LYCEE_POOL, last: LYCEE_LAST },
-  universite: { first: UNIV_FIRST, pool: UNIV_POOL, last: UNIV_LAST },
-  travail: { first: TRAVAIL_FIRST, pool: TRAVAIL_POOL, last: TRAVAIL_LAST },
+const byId = (list: Situation[], id: string) => list.find((s) => s.id === id)!;
+
+/**
+ * Situations de chaque étape :
+ * - opening : moment clé, obligatoire pour tous au début de l'étape (filière, Parcoursup, premier emploi) ;
+ * - events : événements de vie personnels, reçus au hasard pendant le temps libre.
+ */
+export const STAGE_CONTENT: Record<Stage, { opening: Situation; events: Situation[] }> = {
+  lycee: {
+    opening: byId(LYCEE_POOL, 'ly-specialites'),
+    events: [LYCEE_FIRST, ...LYCEE_POOL.filter((s) => s.id !== 'ly-specialites'), LYCEE_LAST],
+  },
+  universite: { opening: UNIV_FIRST, events: [...UNIV_POOL, UNIV_LAST] },
+  travail: { opening: TRAVAIL_FIRST, events: [...TRAVAIL_POOL, TRAVAIL_LAST] },
 };
 
-export const ALL_SITUATIONS: Situation[] = Object.values(STAGE_CONTENT).flatMap((s) => [s.first, ...s.pool, s.last]);
+export const ALL_SITUATIONS: Situation[] = Object.values(STAGE_CONTENT).flatMap((s) => [s.opening, ...s.events]);
 
 /** Textes d'introduction d'étape, personnalisés selon la classe d'origine */
 export const STAGE_INTRO: Record<Stage, { title: string; board: string; byClass: Record<SocialClass, string> }> = {

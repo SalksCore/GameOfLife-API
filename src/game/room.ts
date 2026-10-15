@@ -148,16 +148,14 @@ export class Room {
     };
   }
 
-  /** Régie : configuration, classes imposées, situation suivante, choix en cours */
+  /** Gestion : configuration, classes imposées, événements en attente */
   controlView(): ControlView {
     const roles: Record<string, SocialClass | null> = {};
     for (const id of this.members.keys()) roles[id] = this.roles.get(id) ?? null;
-    const live = this.game?.controlView();
     return {
       config: { ...this.config },
       roles,
-      upcoming: live?.upcoming ?? null,
-      choices: live?.choices ?? {},
+      pending: this.game?.controlView().pending ?? {},
       events: GAME_EVENTS.map(({ id, emoji, label, description }) => ({ id, emoji, label, description })),
     };
   }
