@@ -11,7 +11,7 @@ import {
   signAccessToken,
   type AccountKind,
 } from '../../auth/tokens.js';
-import { isProd } from '../../config/env.js';
+import { env, isProd } from '../../config/env.js';
 
 // Par IP. En dev, tout le monde est sur 127.0.0.1 : limite plus large (le verrouillage par identifiant reste actif)
 const LOGIN_PER_MINUTE = isProd ? 10 : 100;
@@ -46,8 +46,9 @@ export function sessionRoutes(app: FastifyInstance, opts: Options) {
     const token = refreshToken ?? (await issueRefreshToken(kind, account.id));
     reply.setCookie(cookieName, token, {
       httpOnly: true,
-      secure: isProd,
-      sameSite: 'strict',
+      // SameSite=None exige Secure (HTTPS)
+      secure: isProd || env.COOKIE_SAMESITE === 'none',
+      sameSite: env.COOKIE_SAMESITE,
       path: cookiePath,
       maxAge: REFRESH_TTL_SEC[kind],
     });
@@ -55,7 +56,12 @@ export function sessionRoutes(app: FastifyInstance, opts: Options) {
     return { accessToken, account: await opts.profile(account.id) };
   }
 
-  const clearCookie = (reply: FastifyReply) => reply.clearCookie(cookieName, { path: cookiePath });
+  const clearCookie = (reply: FastifyReply) =>
+    reply.clearCookie(cookieName, {
+      path: cookiePath,
+      secure: isProd || env.COOKIE_SAMESITE === 'none',
+      sameSite: env.COOKIE_SAMESITE,
+    });
 
   app.post(
     '/login',

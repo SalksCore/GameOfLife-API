@@ -21,6 +21,11 @@ const schema = z.object({
         .filter(Boolean),
     ),
   TRUST_PROXY: bool,
+  /**
+   * SameSite du cookie de session. strict (défaut) si l'API et les sites sont sur le même domaine
+   * (api.exemple.fr, jeu.exemple.fr) ; none si les domaines diffèrent (ex. *.pages.dev + *.onrender.com).
+   */
+  COOKIE_SAMESITE: z.enum(['strict', 'lax', 'none']).default('strict'),
 });
 
 const parsed = schema.safeParse(process.env);
