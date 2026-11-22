@@ -1,7 +1,8 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  // create-admin : création du premier compte admin sur le serveur (node dist/create-admin.js)
+  entry: { index: 'src/index.ts', 'create-admin': 'scripts/create-admin.ts' },
   format: 'esm',
   target: 'node22',
   platform: 'node',

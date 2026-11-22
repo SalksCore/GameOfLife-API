@@ -1,0 +1,40 @@
+# GameOfLife sur la VM Oracle, à côté de LifeTrack.
+# Le HTTPS est assuré par le Caddy de LifeTrack (réseau lifetrack_default) : bloc « gol » dans son Caddyfile.
+services:
+  gol-api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    env_file: .env
+    restart: unless-stopped
+    mem_limit: 300m
+    depends_on:
+      gol-db:
+        condition: service_healthy
+    networks: [default, lifetrack]
+
+  # Postgres local : données en France (Marseille), aucun service payant.
+  gol-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: 160m
+    command: ["postgres", "-c", "shared_buffers=16MB", "-c", "max_connections=20", "-c", "work_mem=2MB"]
+    environment:
+      POSTGRES_DB: gameoflife
+      POSTGRES_USER: gameoflife
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Renseigne POSTGRES_PASSWORD dans .env}
+    volumes:
+      - gol_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gameoflife -d gameoflife"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  lifetrack:
+    name: lifetrack_default
+    external: true
+
+volumes:
+  gol_db:

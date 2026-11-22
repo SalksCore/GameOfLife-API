@@ -1,4 +1,4 @@
-import { eq, inArray, lt, max } from 'drizzle-orm';
+import { eq, inArray, lt, sql } from 'drizzle-orm';
 import type { Logger } from '../utils/logger.js';
 import { db } from './client.js';
 import { adminActions, gamePlayers, games, playerLogins, players } from './schema.js';
@@ -21,7 +21,8 @@ export async function purgeExpiredData(log: Logger, now = Date.now()): Promise<{
     .innerJoin(gamePlayers, eq(gamePlayers.playerId, players.id))
     .innerJoin(games, eq(games.id, gamePlayers.gameId))
     .groupBy(players.id)
-    .having(lt(max(games.endedAt), limit));
+    // Date passée en texte ISO : l'agrégat max() n'est pas converti automatiquement par le pilote Postgres
+    .having(sql`max(${games.endedAt}) < ${limit.toISOString()}::timestamptz`);
   const ids = expired.map((r) => r.id);
   if (ids.length) await db.delete(players).where(inArray(players.id, ids));
   const oldGames = await db.delete(games).where(lt(games.endedAt, limit)).returning({ id: games.id });
