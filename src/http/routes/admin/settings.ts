@@ -3,12 +3,16 @@ import type { FastifyInstance } from 'fastify';
 import { logAdminAction } from '../../../db/audit.js';
 import { db } from '../../../db/client.js';
 import { admins } from '../../../db/schema.js';
+import { DEFAULT_CARDS, buildDeck } from '../../../game/v2/content.js';
 import {
+  exposeSchema,
   generalSchema,
+  getExpose,
   getGeneral,
   getMaintenance,
   getSettingsMeta,
   maintenanceSchema,
+  updateExpose,
   updateGeneral,
   updateMaintenance,
 } from '../../../settings.js';
@@ -62,5 +66,26 @@ export async function settingsRoutes(app: FastifyInstance) {
         : 'maintenance.update';
     await logAdminAction(req.account!.id, action, maintenance.enabled ? maintenance.message : null);
     return { maintenance, meta: await describeMeta() };
+  });
+
+  /** Contenus de l'exposé : diaporama (25 étapes) et cartes « Le saviez-vous » */
+  app.get('/expose', async () => ({
+    deck: buildDeck(getExpose()),
+    cards: getExpose().cards,
+    defaultCards: DEFAULT_CARDS,
+    defaultDeck: buildDeck(null),
+  }));
+
+  app.put('/expose', async (req, reply) => {
+    const parsed = exposeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      return reply.status(400).send({ error: `Contenu invalide (${issue?.path.join('.')}) : ${issue?.message}` });
+    }
+    const ids = parsed.data.cards.map((c) => c.id);
+    if (new Set(ids).size !== ids.length) return reply.status(400).send({ error: 'Deux cartes ont le même numéro' });
+    await updateExpose(parsed.data, req.account!.id);
+    await logAdminAction(req.account!.id, 'expose.update', `${Object.keys(parsed.data.steps).length} étapes, ${ids.length} cartes`);
+    return { deck: buildDeck(getExpose()), cards: getExpose().cards, defaultCards: DEFAULT_CARDS, defaultDeck: buildDeck(null) };
   });
 }

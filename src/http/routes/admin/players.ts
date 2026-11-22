@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gt, ilike, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { cleanName, displayNameOf, generatePassword, generateUsername, slug } from '../../../auth/accounts.js';
+import { cleanName, displayNameOf, generatePassword, generatePseudonym, generateUsername, slug } from '../../../auth/accounts.js';
 import { hashPassword } from '../../../auth/password.js';
 import { revokeAllSessions } from '../../../auth/tokens.js';
 import { logAdminAction } from '../../../db/audit.js';
@@ -35,7 +35,10 @@ const nameField = z
   .regex(/^[\p{L}][\p{L}\s'-]*$/u, 'lettres, espaces, apostrophes et tirets uniquement')
   .refine((v) => slug(v).length > 0, 'doit contenir au moins une lettre latine');
 const nameBody = z.object({ firstName: nameField, lastName: nameField });
-const bulkBody = z.object({ players: z.array(z.object({ firstName: z.string(), lastName: z.string() })).min(1).max(BULK_MAX) });
+const anonBody = z.object({ anonymous: z.literal(true) });
+const bulkBody = z.object({
+  players: z.array(z.object({ firstName: z.string(), lastName: z.string(), anonymous: z.boolean().optional() })).min(1).max(BULK_MAX),
+});
 const updateBody = z
   .object({ firstName: nameField, lastName: nameField, notes: z.string().max(2_000) })
   .partial()
@@ -51,6 +54,7 @@ export const adminPlayer = (p: Player) => ({
   firstName: p.firstName,
   lastName: p.lastName,
   displayName: displayNameOf(p),
+  anonymous: p.anonymous,
   gamesPlayed: p.gamesPlayed,
   createdAt: p.createdAt,
   updatedAt: p.updatedAt,
@@ -68,18 +72,21 @@ function nameError(reply: FastifyReply, error: z.ZodError) {
 }
 
 /** Crée un joueur avec identifiant et mot de passe générés (réessaie si deux créations se croisent). */
-async function createPlayer(firstName: string, lastName: string, adminId: string) {
+async function createPlayer(firstName: string | null, lastName: string | null, adminId: string) {
   const password = generatePassword();
   const passwordHash = await hashPassword(password);
+  const anonymous = firstName === null || lastName === null;
   for (let attempt = 0; attempt < 5; attempt++) {
-    const username = await generateUsername(firstName, lastName);
+    // Option anonyme : aucun nom réel n'est enregistré, ni dans le compte ni dans le journal
+    const names = anonymous ? await generatePseudonym() : { firstName: firstName!, lastName: lastName!, username: await generateUsername(firstName!, lastName!) };
+    const { username } = names;
     const [created] = await db
       .insert(players)
-      .values({ firstName, lastName, username, passwordHash, createdBy: adminId })
+      .values({ firstName: names.firstName, lastName: names.lastName, username, anonymous, passwordHash, createdBy: adminId })
       .onConflictDoNothing({ target: players.username })
       .returning();
     if (created) {
-      await logAdminAction(adminId, 'player.create', `${username} (${firstName} ${lastName})`, { playerId: created.id });
+      await logAdminAction(adminId, 'player.create', anonymous ? `${username} (option anonyme)` : `${username} (${names.firstName} ${names.lastName})`, { playerId: created.id });
       return { player: created, password };
     }
   }
@@ -159,13 +166,12 @@ export async function playerRoutes(app: FastifyInstance) {
   // ---------- Création ----------
   /** Le mot de passe n'est renvoyé qu'ICI, une seule fois (seul son hash est stocké). */
   app.post('/', async (req, reply) => {
+    const anon = anonBody.safeParse(req.body);
     const parsed = nameBody.safeParse(req.body);
-    if (!parsed.success) return nameError(reply, parsed.error);
-    const created = await createPlayer(
-      cleanName(parsed.data.firstName),
-      cleanName(parsed.data.lastName),
-      req.account!.id,
-    );
+    if (!anon.success && !parsed.success) return nameError(reply, parsed.error!);
+    const created = anon.success
+      ? await createPlayer(null, null, req.account!.id)
+      : await createPlayer(cleanName(parsed.data!.firstName), cleanName(parsed.data!.lastName), req.account!.id);
     if (!created) return reply.status(409).send({ error: 'Impossible de générer un identifiant, réessaie' });
     return reply.status(201).send({
       player: adminPlayer(created.player),
@@ -179,6 +185,15 @@ export async function playerRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.status(400).send({ error: `Entre 1 et ${BULK_MAX} joueurs à la fois` });
     const results = [];
     for (const [index, input] of parsed.data.players.entries()) {
+      if (input.anonymous) {
+        const created = await createPlayer(null, null, req.account!.id);
+        results.push(
+          created
+            ? { index, ok: true as const, firstName: created.player.firstName, lastName: created.player.lastName, username: created.player.username, password: created.password }
+            : { index, ok: false as const, error: 'Pseudonyme impossible à générer' },
+        );
+        continue;
+      }
       const check = nameBody.safeParse(input);
       if (!check.success) {
         const issue = check.error.issues[0];

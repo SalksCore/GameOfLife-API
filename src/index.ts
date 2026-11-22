@@ -2,6 +2,7 @@ import { env } from './config/env.js';
 import { closeDb, connectDb } from './db/client.js';
 import { buildApp } from './http/app.js';
 import { createRealtime } from './realtime/index.js';
+import { scheduleRetention } from './db/retention.js';
 import { loadSettings } from './settings.js';
 
 const app = await buildApp();
@@ -10,6 +11,7 @@ await connectDb();
 await loadSettings();
 app.log.info(env.DATABASE_URL ? 'PostgreSQL connecté' : 'PGlite (Postgres embarqué) utilisé — dev uniquement');
 
+const stopRetention = scheduleRetention(app.log);
 const realtime = createRealtime(app.log);
 app.decorate('realtime', realtime);
 realtime.io.attach(app.server);
@@ -24,6 +26,7 @@ async function shutdown(signal: string) {
   const force = setTimeout(() => process.exit(1), 10_000);
   force.unref();
   try {
+    stopRetention();
     realtime.close();
     await app.close();
     await closeDb();

@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 // ============ Comptes ADMINS (utilisés par ADMIN) ============
 
@@ -72,6 +72,8 @@ export const players = pgTable('players', {
   /** Identifiant généré : 1re lettre du nom + prénom (ex. Jean Dupont -> djean) */
   username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
+  /** Option anonyme : prénom = mot tiré au hasard, nom = nombre (ex. « Renard 42 »), aucun nom réel enregistré */
+  anonymous: boolean('anonymous').notNull().default(false),
   /** Personnalisation choisie par le joueur (liste fermée côté serveur) */
   avatar: text('avatar').notNull().default('🙂'),
   color: text('color').notNull().default('violet'),

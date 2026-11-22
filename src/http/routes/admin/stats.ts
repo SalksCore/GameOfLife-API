@@ -86,6 +86,7 @@ export async function statsRoutes(app: FastifyInstance) {
           username: players.username,
           firstName: players.firstName,
           lastName: players.lastName,
+          anonymous: players.anonymous,
           games: count(),
         })
         .from(gamePlayers)

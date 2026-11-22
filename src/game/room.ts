@@ -1,12 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { LifeGame, type Timings } from './life/engine.js';
-import { GAME_EVENTS } from './life/content.js';
+import { DEFAULT_CARDS, buildDeck } from './v2/content.js';
+import { ExposeGame, type GameTimings } from './v2/game.js';
 import {
   DEFAULT_GAME_CONFIG,
   type AdminRoom,
   type ChatMessage,
   type ControlView,
+  type DeckAction,
+  type ExposeContent,
   type GameConfig,
+  type GameExport,
+  type GameInput,
   type Phase,
   type RoomView,
   type ScreenView,
@@ -38,7 +42,11 @@ export interface RoomTimings {
   /** Salle d'attente : délai de reconnexion avant de retirer un joueur (réseau mobile instable) */
   lobbyGrace: number;
   /** Durées du jeu (tests) */
-  game?: Partial<Timings>;
+  game?: GameTimings;
+  /** Aléa du jeu (tests) */
+  rnd?: () => number;
+  /** Contenus de l'exposé modifiés dans le panneau (diaporama, cartes) */
+  content?: () => Readonly<ExposeContent>;
 }
 
 export const DEFAULT_TIMINGS: RoomTimings = { lobbyGrace: 15_000 };
@@ -65,8 +73,8 @@ export interface RoomInit {
 type Result = string | null; // message d'erreur ou null si OK
 
 /**
- * Partie générique, pilotée par un admin : salle d'attente -> en cours -> terminée.
- * Les règles du jeu viendront s'ajouter ici (phase 'playing').
+ * Partie pilotée par un admin : salle d'attente -> exposé en cours -> terminé.
+ * Pendant l'exposé, ExposeGame enchaîne les 25 étapes.
  */
 export class Room {
   phase: Phase = 'lobby';
@@ -78,8 +86,15 @@ export class Room {
   private closed = false;
   /** Classes imposées par la régie avant le lancement (absent = tirage au sort) */
   private readonly roles = new Map<string, SocialClass>();
+  /** Binômes : joueur -> partenaire (symétrique) */
+  private readonly pairs = new Map<string, string>();
+  /** Demandes de binôme : demandeur -> destinataire */
+  private readonly pairRequests = new Map<string, string>();
   private config: GameConfig = { ...DEFAULT_GAME_CONFIG };
-  game: LifeGame | null = null;
+  private content(): ExposeContent {
+    return (this.timings.content?.() as ExposeContent | undefined) ?? { steps: {}, cards: DEFAULT_CARDS };
+  }
+  game: ExposeGame | null = null;
 
   constructor(
     readonly info: RoomInit,
@@ -124,12 +139,20 @@ export class Room {
       })),
       startedAt: this.startedAt?.getTime() ?? null,
       now: Date.now(),
+      pairing: {
+        partnerId: this.pairs.get(playerId) ?? null,
+        requestsFrom: [...this.pairRequests].filter(([, to]) => to === playerId).map(([from]) => from),
+        requestedTo: this.pairRequests.get(playerId) ?? null,
+        locked: this.phase !== 'lobby',
+      },
       game: this.game?.playerView(playerId) ?? null,
     };
   }
 
-  /** Écran projeté : salle d'attente puis plateau de jeu */
+  /** Écran projeté : salle d'attente puis l'étape en cours */
   screenView(): ScreenView {
+    const g = this.game;
+    const step = g?.step;
     return {
       roomId: this.id,
       code: this.code,
@@ -143,20 +166,45 @@ export class Room {
         avatar,
         color,
         connected,
+        partner: this.pairs.has(id) ? (this.members.get(this.pairs.get(id)!)?.displayName ?? null) : null,
       })),
-      board: this.game?.boardView() ?? null,
+      deck: g && step ? { index: g.cursor, total: g.controlView().deck.length, kind: step.kind, title: step.slide.title, replay: g.replay } : null,
+      timer: g?.timer() ?? { endsAt: null, paused: false, remaining: null },
+      players: g?.screenPlayers() ?? [],
+      show: g?.screenStep() ?? null,
+      card: g?.screenCard() ?? null,
+      feed: g?.screenFeed() ?? [],
     };
   }
 
-  /** Gestion : configuration, classes imposées, événements en attente */
+  /** Régie : configuration, classes imposées, binômes, déroulé */
   controlView(): ControlView {
     const roles: Record<string, SocialClass | null> = {};
     for (const id of this.members.keys()) roles[id] = this.roles.get(id) ?? null;
-    return {
+    const base = {
       config: { ...this.config },
       roles,
-      pending: this.game?.controlView().pending ?? {},
-      events: GAME_EVENTS.map(({ id, emoji, label, description }) => ({ id, emoji, label, description })),
+      pairs: Object.fromEntries(this.pairs),
+    };
+    if (this.game) return { ...base, ...this.game.controlView() };
+    const deck = buildDeck(this.content());
+    return {
+      ...base,
+      deck: deck.map((s) => ({ id: s.id, kind: s.kind, title: s.slide.title, enabled: s.enabled, who: s.who, plan: s.plan, played: false })),
+      cursor: -1,
+      furthest: -1,
+      startedAt: null,
+      notes: deck[0]?.slide.notes ?? '',
+      canClose: false,
+      canReveal: false,
+      revealLabel: 'Révéler',
+      lecture: false,
+      cards: this.content().cards,
+      stepCards: [],
+      shownCard: null,
+      characters: [],
+      events: [],
+      reform: null,
     };
   }
 
@@ -190,7 +238,6 @@ export class Room {
       // Reconnexion : l'apparence a pu changer entre-temps
       Object.assign(existing, player);
       existing.connected = true;
-      this.game?.touchMember(existing);
       this.cancelLeaveTimer(player.id);
       this.touch();
       return null;
@@ -211,6 +258,7 @@ export class Room {
     this.cancelLeaveTimer(playerId);
     this.members.delete(playerId);
     this.roles.delete(playerId);
+    if (this.phase === 'lobby') this.unpair(playerId);
     this.out.state(playerId, null);
     if (notice) this.out.notice(playerId, notice);
     this.system(`${m.displayName} a quitté la partie`);
@@ -252,19 +300,91 @@ export class Room {
     return null;
   }
 
+  // ---------- Binômes (salle d'attente) ----------
+
+  pairAction(playerId: string, action: 'request' | 'accept' | 'decline' | 'leave', otherId: string | null): Result {
+    if (this.phase !== 'lobby') return 'Les binômes sont fixés une fois la partie lancée';
+    if (!this.members.has(playerId)) return 'Tu n’es pas dans cette partie';
+    switch (action) {
+      case 'request': {
+        if (!otherId || otherId === playerId || !this.members.has(otherId)) return 'Joueur introuvable';
+        if (this.pairs.has(playerId)) return 'Tu joues déjà en binôme';
+        if (this.pairs.has(otherId)) return 'Ce joueur joue déjà en binôme';
+        // Demande croisée : le binôme est formé
+        if (this.pairRequests.get(otherId) === playerId) return this.makePair(playerId, otherId);
+        this.pairRequests.set(playerId, otherId);
+        break;
+      }
+      case 'accept': {
+        if (!otherId || this.pairRequests.get(otherId) !== playerId) return 'Cette demande n’existe plus';
+        if (this.pairs.has(otherId) || this.pairs.has(playerId)) return 'Binôme déjà formé';
+        return this.makePair(playerId, otherId);
+      }
+      case 'decline': {
+        if (otherId && this.pairRequests.get(otherId) === playerId) this.pairRequests.delete(otherId);
+        else this.pairRequests.delete(playerId);
+        break;
+      }
+      case 'leave':
+        this.unpair(playerId);
+        break;
+    }
+    this.touch();
+    return null;
+  }
+
+  /** Régie : former ou défaire un binôme */
+  adminPair(playerId: string, partnerId: string | null): Result {
+    if (this.phase !== 'lobby') return 'Les binômes sont fixés une fois la partie lancée';
+    if (!this.members.has(playerId)) return 'Joueur absent de cette partie';
+    if (partnerId === null) {
+      this.unpair(playerId);
+      this.touch();
+      return null;
+    }
+    if (partnerId === playerId || !this.members.has(partnerId)) return 'Partenaire introuvable';
+    this.unpair(playerId);
+    this.unpair(partnerId);
+    return this.makePair(playerId, partnerId);
+  }
+
+  private makePair(a: string, b: string): Result {
+    this.pairs.set(a, b);
+    this.pairs.set(b, a);
+    for (const [from, to] of [...this.pairRequests]) if ([a, b].includes(from) || [a, b].includes(to)) this.pairRequests.delete(from);
+    // Un binôme a une seule famille : la classe imposée à l'un vaut pour les deux
+    const role = this.roles.get(a) ?? this.roles.get(b);
+    if (role) {
+      this.roles.set(a, role);
+      this.roles.set(b, role);
+    }
+    this.system(`🤝 ${this.members.get(a)?.displayName} et ${this.members.get(b)?.displayName} jouent en binôme`);
+    this.touch();
+    return null;
+  }
+
+  private unpair(playerId: string) {
+    const p = this.pairs.get(playerId);
+    if (p) this.pairs.delete(p);
+    this.pairs.delete(playerId);
+    for (const [from, to] of [...this.pairRequests]) if (from === playerId || to === playerId) this.pairRequests.delete(from);
+  }
+
   // ---------- Pilotage (admin) ----------
 
   setRole(playerId: string, role: SocialClass | null): Result {
-    if (this.phase !== 'lobby') return 'Les classes sont déjà attribuées';
+    if (this.game?.hasDrawn) return 'Les familles sont déjà tirées';
     if (!this.members.has(playerId)) return 'Joueur absent de cette partie';
-    if (role) this.roles.set(playerId, role);
-    else this.roles.delete(playerId);
+    const ids = [playerId, ...(this.pairs.has(playerId) ? [this.pairs.get(playerId)!] : [])];
+    for (const id of ids) {
+      if (role) this.roles.set(id, role);
+      else this.roles.delete(id);
+    }
     this.out.live();
     return null;
   }
 
   configure(config: Partial<GameConfig>): Result {
-    if (this.phase !== 'lobby') return 'La partie est déjà lancée';
     this.config = { ...this.config, ...config };
     this.out.live();
     return null;
@@ -275,9 +395,16 @@ export class Room {
     if (this.members.size === 0) return 'Aucun joueur dans la partie';
     this.phase = 'playing';
     this.startedAt = new Date();
-    this.game = new LifeGame(
+    for (const t of this.leaveTimers.values()) clearTimeout(t);
+    this.leaveTimers.clear();
+    this.pairRequests.clear();
+    const expose = this.content();
+    this.game = new ExposeGame(
+      buildDeck(expose),
+      expose.cards,
       [...this.members.values()],
-      new Map(this.roles),
+      this.roles,
+      new Map(this.pairs),
       this.config,
       () => this.members,
       {
@@ -286,23 +413,39 @@ export class Room {
           for (const id of ids ?? this.members.keys()) {
             if (this.members.has(id)) this.out.state(id, this.viewFor(id));
           }
+          this.lastActivity = Date.now();
         },
-        board: () => this.out.live(),
-        finished: () => this.markEnded(),
+        live: () => this.out.live(),
       },
-      { timings: this.timings.game },
+      this.timings.rnd,
+      this.timings.game,
     );
-    this.system('🚀 La partie commence !');
-    this.touch();
+    this.system('🚀 L’exposé commence !');
     this.game.start();
+    this.touch();
     return null;
   }
 
-  /** Fin anticipée par la régie : le jeu passe directement à la pyramide */
+  deck(action: DeckAction, index?: number): Result {
+    if (!this.game) return 'L’exposé n’est pas lancé';
+    return this.game.control(action, index);
+  }
+
+  input(playerId: string, input: GameInput): Result {
+    if (!this.game) return 'Aucune partie en cours';
+    if (!this.members.has(playerId)) return 'Tu n’es pas dans cette partie';
+    return this.game.input(playerId, input);
+  }
+
+  exportData(): GameExport | string {
+    if (!this.game) return 'L’exposé n’est pas lancé';
+    return this.game.exportData({ name: this.info.name, code: this.code });
+  }
+
+  /** Fin de l'exposé : la partie part dans l'historique (le dernier écran reste affiché) */
   end(): Result {
     if (this.phase !== 'playing') return 'La partie n’est pas en cours';
-    if (this.game && !this.game.isFinished) this.game.finish();
-    else this.markEnded();
+    this.markEnded();
     return null;
   }
 

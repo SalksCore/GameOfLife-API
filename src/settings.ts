@@ -2,7 +2,8 @@ import { EventEmitter } from 'node:events';
 import { z } from 'zod';
 import { db } from './db/client.js';
 import { settings as settingsTable } from './db/schema.js';
-import { LIMITS } from './game/protocol.js';
+import { LIMITS, type ExposeContent } from './game/protocol.js';
+import { DEFAULT_CARDS } from './game/v2/content.js';
 
 /**
  * Paramètres modifiables depuis ADMIN, stockés en base et gardés en mémoire
@@ -25,12 +26,36 @@ export const maintenanceSchema = z.object({
   endsAt: z.iso.datetime({ offset: true }).nullable(),
 });
 
+const slideSchema = z.object({
+  title: z.string().trim().min(1).max(LIMITS.slideTitleMax),
+  subtitle: z.string().trim().max(LIMITS.slideTextMax),
+  bullets: z.array(z.string().trim().min(1).max(LIMITS.slideTextMax)).max(LIMITS.slideBulletsMax),
+  notes: z.string().trim().max(LIMITS.notesMax),
+});
+export const exposeSchema = z.object({
+  steps: z.record(z.string().max(40), z.object({ enabled: z.boolean(), slide: slideSchema })),
+  cards: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(8),
+        title: z.string().trim().min(1).max(80),
+        figure: z.string().trim().min(1).max(30),
+        text: z.string().trim().min(1).max(LIMITS.slideTextMax),
+        source: z.string().trim().max(200),
+        moment: z.string().trim().max(60),
+        link: z.string().trim().max(200),
+      }),
+    )
+    .max(LIMITS.cardsMax),
+});
+
 export type GeneralSettings = z.infer<typeof generalSchema>;
 export type MaintenanceSettings = z.infer<typeof maintenanceSchema> & { since: string | null };
 
 interface Sections {
   general: GeneralSettings;
   maintenance: MaintenanceSettings;
+  expose: ExposeContent;
 }
 
 const DEFAULTS: Sections = {
@@ -48,6 +73,7 @@ const DEFAULTS: Sections = {
     endsAt: null,
     since: null,
   },
+  expose: { steps: {}, cards: DEFAULT_CARDS },
 };
 
 type Key = keyof Sections;
@@ -56,6 +82,7 @@ const current: Sections = structuredClone(DEFAULTS);
 const meta: Record<Key, { updatedAt: Date | null; updatedBy: string | null }> = {
   general: { updatedAt: null, updatedBy: null },
   maintenance: { updatedAt: null, updatedBy: null },
+  expose: { updatedAt: null, updatedBy: null },
 };
 
 /** Événements : 'maintenance' (MaintenanceSettings), 'general' (GeneralSettings) */
@@ -64,7 +91,7 @@ export const settingsEvents = new EventEmitter();
 export async function loadSettings(): Promise<void> {
   const rows = await db.select().from(settingsTable);
   for (const row of rows) {
-    if (row.key !== 'general' && row.key !== 'maintenance') continue;
+    if (row.key !== 'general' && row.key !== 'maintenance' && row.key !== 'expose') continue;
     // Fusion avec les valeurs par défaut : un nouveau paramètre ajouté plus tard a toujours une valeur
     Object.assign(current[row.key], row.value as object);
     meta[row.key] = { updatedAt: row.updatedAt, updatedBy: row.updatedBy };
@@ -74,6 +101,13 @@ export async function loadSettings(): Promise<void> {
 export const getGeneral = (): Readonly<GeneralSettings> => current.general;
 export const getMaintenance = (): Readonly<MaintenanceSettings> => current.maintenance;
 export const getSettingsMeta = () => meta;
+export const getExpose = (): Readonly<ExposeContent> => current.expose;
+
+export async function updateExpose(value: ExposeContent, adminId: string): Promise<ExposeContent> {
+  await save('expose', value, adminId);
+  current.expose = value;
+  return value;
+}
 
 async function save<K extends Key>(key: K, value: Sections[K], adminId: string) {
   const now = new Date();

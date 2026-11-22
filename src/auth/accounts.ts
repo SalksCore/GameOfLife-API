@@ -17,8 +17,28 @@ export interface AccountRecord {
   blocked: string | null;
 }
 
-export const displayNameOf = (p: Pick<Player, 'firstName' | 'lastName'>) =>
-  `${p.firstName} ${p.lastName.charAt(0).toUpperCase()}.`;
+export const displayNameOf = (p: Pick<Player, 'firstName' | 'lastName'> & { anonymous?: boolean }) =>
+  p.anonymous ? `${p.firstName} ${p.lastName}` : `${p.firstName} ${p.lastName.charAt(0).toUpperCase()}.`;
+
+// Pseudonymes de l'option anonyme : animaux et éléments, sans accents
+const PSEUDOS = [
+  'Renard', 'Hibou', 'Loutre', 'Panda', 'Koala', 'Lynx', 'Faucon', 'Dauphin', 'Castor', 'Toucan', 'Jaguar', 'Zebre',
+  'Girafe', 'Pelican', 'Marmotte', 'Gazelle', 'Bison', 'Puma', 'Cobra', 'Comete', 'Orage', 'Volcan', 'Glacier', 'Cactus',
+];
+
+/** Option anonyme : pseudonyme aléatoire libre (« Renard 42 ») et son identifiant (renard42) */
+export async function generatePseudonym(): Promise<{ firstName: string; lastName: string; username: string }> {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const firstName = PSEUDOS[randomInt(PSEUDOS.length)]!;
+    const lastName = String(randomInt(10, 100));
+    const username = `${slug(firstName)}${lastName}`;
+    const [taken] = await db.select({ id: players.id }).from(players).where(eq(players.username, username)).limit(1);
+    if (!taken) return { firstName, lastName, username };
+  }
+  const firstName = PSEUDOS[randomInt(PSEUDOS.length)]!;
+  const lastName = String(randomInt(100, 10_000));
+  return { firstName, lastName, username: `${slug(firstName)}${lastName}` };
+}
 
 export async function findAccount(
   kind: AccountKind,

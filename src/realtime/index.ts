@@ -18,12 +18,13 @@ import {
   type AdminClientToServerEvents,
   type AdminServerToClientEvents,
   type ClientToServerEvents,
+  type GameInput,
   type ServerToClientEvents,
 } from '../game/protocol.js';
 import type { GameResult, Room } from '../game/room.js';
 import { RoomManager, type PlayerIdentity } from '../game/room-manager.js';
 import type { Logger } from '../utils/logger.js';
-import { getGeneral, getMaintenance, settingsEvents, type MaintenanceSettings } from '../settings.js';
+import { getExpose, getGeneral, getMaintenance, settingsEvents, type MaintenanceSettings } from '../settings.js';
 import { TokenBucket } from '../utils/token-bucket.js';
 
 interface SocketData {
@@ -53,25 +54,42 @@ const schemas = {
   }),
   roomId: z.object({ roomId: uuid }),
   kick: z.object({ roomId: uuid, playerId: uuid }),
-  act: z.object({ actionId: z.string().min(1).max(40) }),
-  answer: z.object({ optionId: z.string().min(1).max(40) }),
   setRole: z.object({ roomId: uuid, playerId: uuid, role: z.enum(SOCIAL_CLASSES).nullable() }),
+  adminPair: z.object({ roomId: uuid, playerId: uuid, partnerId: uuid.nullable() }),
+  pair: z.object({ action: z.enum(['request', 'accept', 'decline', 'leave']), playerId: uuid.nullable() }),
   configure: z.object({
     roomId: uuid,
     config: z
       .object({
-        stageMinutes: z.number().int().min(LIMITS.stageMinutesMin).max(LIMITS.stageMinutesMax),
+        yearSeconds: z.number().int().min(LIMITS.yearSecondsMin).max(LIMITS.yearSecondsMax),
         distribution: z.enum(Object.keys(DISTRIBUTIONS) as [keyof typeof DISTRIBUTIONS]),
+        addressEffect: z.boolean(),
       })
       .partial(),
   }),
-  gameControl: z.object({ roomId: uuid, action: z.enum(['pause', 'resume', 'nextStage']) }),
+  deck: z.object({
+    roomId: uuid,
+    action: z.enum(['next', 'prev', 'close', 'reveal', 'extend', 'pause', 'resume', 'goto']),
+    index: z.number().int().min(0).max(200).optional(),
+  }),
+  card: z.object({ roomId: uuid, cardId: z.string().min(1).max(8).nullable() }),
   give: z.object({
     roomId: uuid,
     target: z.union([z.literal('all'), z.enum(SOCIAL_CLASSES.map((c) => `class:${c}`) as [string, ...string[]]), uuid]),
     amount: z.number().int().min(-LIMITS.giveMax).max(LIMITS.giveMax),
   }),
   event: z.object({ roomId: uuid, eventId: z.string().min(1).max(40) }),
+  input: z.discriminatedUnion('type', [
+    z.object({ type: z.literal('tokens'), tokens: z.record(z.string().max(20), z.number().int().min(0).max(6)) }),
+    z.object({ type: z.literal('decide'), optionId: z.string().min(1).max(40) }),
+    z.object({ type: z.literal('mini'), item: z.string().min(1).max(40), option: z.string().min(1).max(40) }),
+    z.object({ type: z.literal('submit') }),
+    z.object({ type: z.literal('poll'), question: z.number().int().min(0).max(10), option: z.number().int().min(0).max(10) }),
+    z.object({ type: z.literal('vote'), optionId: z.string().min(1).max(40) }),
+    z.object({ type: z.literal('wishes'), wishes: z.array(z.string().max(20)).max(LIMITS.wishesMax), bourse: z.boolean(), submit: z.boolean() }),
+    z.object({ type: z.literal('response'), accept: z.string().max(20).nullable() }),
+    z.object({ type: z.literal('job'), optionId: z.string().min(1).max(40) }),
+  ]),
 };
 const watchRoom = (roomId: string) => `watch:${roomId}`;
 
@@ -138,7 +156,7 @@ export function createRealtime(log: Logger) {
   }, {
     maxRooms: () => getGeneral().maxOpenRooms,
     idleTimeoutMs: () => getGeneral().idleTimeoutHours * 3_600_000,
-  });
+  }, { lobbyGrace: 15_000, content: getExpose });
 
   // ---- Authentification du handshake ----
   // Namespace "/" : token JOUEUR uniquement. Namespace "/admin" : token ADMIN uniquement.
@@ -242,13 +260,21 @@ export function createRealtime(log: Logger) {
       ),
     );
 
-    const inGame = (fn: (game: NonNullable<Room['game']>) => string | null) => {
-      const room = manager.roomOf(me.id);
-      return result(room?.game ? fn(room.game) : 'Aucune partie en cours');
-    };
-    socket.on('game:act', handle(socket, schemas.act, ({ actionId }) => inGame((g) => g.act(me.id, actionId))));
-    socket.on('game:cancel', handle(socket, null, () => inGame((g) => g.cancel(me.id))));
-    socket.on('game:answer', handle(socket, schemas.answer, ({ optionId }) => inGame((g) => g.answer(me.id, optionId))));
+    socket.on(
+      'room:pair',
+      handle(socket, schemas.pair, ({ action, playerId }) => {
+        const room = manager.roomOf(me.id);
+        return result(room ? room.pairAction(me.id, action, playerId) : 'Tu n’es dans aucune partie');
+      }),
+    );
+
+    socket.on(
+      'game:input',
+      handle(socket, schemas.input, (input) => {
+        const room = manager.roomOf(me.id);
+        return result(room ? room.input(me.id, input as GameInput) : 'Tu n’es dans aucune partie');
+      }),
+    );
 
     socket.on('disconnect', () => {
       // Si une nouvelle session a déjà pris le relais, ne rien faire
@@ -346,11 +372,25 @@ export function createRealtime(log: Logger) {
       }),
     );
     socket.on(
-      'admin:gameControl',
-      handle(socket, schemas.gameControl, ({ roomId, action }) => {
+      'admin:pair',
+      handle(socket, schemas.adminPair, ({ roomId, playerId, partnerId }) => {
         const room = manager.get(roomId);
-        if (!room?.game) return result('Aucune partie en cours');
-        return result(room.game.control(action));
+        return result(room ? room.adminPair(playerId, partnerId) : 'Partie introuvable');
+      }),
+    );
+    socket.on(
+      'admin:deck',
+      handle(socket, schemas.deck, ({ roomId, action, index }) => {
+        const room = manager.get(roomId);
+        return result(room ? room.deck(action, index) : 'Partie introuvable');
+      }),
+    );
+    socket.on(
+      'admin:card',
+      handle(socket, schemas.card, ({ roomId, cardId }) => {
+        const room = manager.get(roomId);
+        if (!room?.game) return result('L’exposé n’est pas lancé');
+        return result(room.game.showCard(cardId));
       }),
     );
     socket.on(
@@ -365,12 +405,13 @@ export function createRealtime(log: Logger) {
         onRoom(roomId, 'game.event', (r) => (r.game ? r.game.event(eventId) : 'Aucune partie en cours')),
       ),
     );
-
     socket.on(
-      'admin:nudge',
-      handle(socket, schemas.kick, ({ roomId, playerId }) => {
+      'admin:export',
+      handle(socket, schemas.roomId, ({ roomId }) => {
         const room = manager.get(roomId);
-        return result(room?.game ? room.game.nudge(playerId) : 'Aucune partie en cours');
+        if (!room) return { ok: false, error: 'Partie introuvable' };
+        const data = room.exportData();
+        return typeof data === 'string' ? { ok: false, error: data } : { ok: true, data };
       }),
     );
 
