@@ -44,7 +44,7 @@ export const SECTOR_SCHOOL: Record<SocialClass, SchoolId> = { populaire: 'quarti
 // ---------------------------------------------------------------- Formations (Parcoursup)
 
 export type Specialty = 'sciences' | 'ses' | 'arts' | 'pro';
-export type FormationId = 'prepa' | 'iep' | 'ecole' | 'licence' | 'but' | 'bts' | 'alternance';
+export type FormationId = 'prepa' | 'prepa_privee' | 'iep' | 'ecole' | 'licence' | 'but' | 'bts' | 'alternance';
 
 export interface Formation {
   id: FormationId;
@@ -66,7 +66,8 @@ export interface Formation {
 }
 
 export const FORMATIONS: Record<FormationId, Formation> = {
-  prepa: { id: 'prepa', label: 'Classe prépa (puis grande école)', emoji: '🏛️', share: 0.12, selective: true, needsInfo: true, quota: true, needsGeneralBac: true, cost: 6_000, fit: { sciences: 1, ses: 0.9, arts: 0.3, pro: 0 }, hint: 'Très sélectif · logement en grande ville' },
+  prepa: { id: 'prepa', label: 'Classe prépa publique (puis grande école)', emoji: '🏛️', share: 0.09, selective: true, needsInfo: true, quota: true, needsGeneralBac: true, cost: 4_000, fit: { sciences: 1, ses: 0.9, arts: 0.3, pro: 0 }, hint: 'Très sélectif · gratuit, logement à payer' },
+  prepa_privee: { id: 'prepa_privee', label: 'Classe prépa privée (puis grande école)', emoji: '🏰', share: 0.05, selective: true, needsInfo: true, quota: false, needsGeneralBac: true, cost: 12_000, fit: { sciences: 1, ses: 0.9, arts: 0.3, pro: 0 }, hint: '≈ 8 000 € de frais par an + logement · pas de quota' },
   iep: { id: 'iep', label: 'Sciences Po / IEP', emoji: '🎓', share: 0.07, selective: true, needsInfo: true, quota: true, needsGeneralBac: true, cost: 6_500, fit: { sciences: 0.7, ses: 1, arts: 0.6, pro: 0 }, hint: 'Très sélectif · frais selon les revenus' },
   ecole: { id: 'ecole', label: 'École de commerce privée post-bac', emoji: '💼', share: 0.12, selective: true, needsInfo: false, quota: false, needsGeneralBac: true, cost: 11_000, fit: { sciences: 0.8, ses: 1, arts: 0.7, pro: 0.3 }, hint: '≈ 9 000 € de frais par an + logement' },
   licence: { id: 'licence', label: 'Licence à l’université', emoji: '📚', share: 0.5, selective: false, needsInfo: false, quota: false, needsGeneralBac: true, cost: 4_000, fit: { sciences: 1, ses: 1, arts: 1, pro: 0.4 }, hint: 'Peu sélective · beaucoup d’abandons en 1ʳᵉ année' },

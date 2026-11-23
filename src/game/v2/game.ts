@@ -811,7 +811,7 @@ export class ExposeGame {
         const text = rank === 0 ? 'Ton premier vœu !' : rank > 0 ? `Ton vœu n° ${rank + 1}.` : 'Phase complémentaire : une place qui restait.';
         this.psFinalText.set(c.id, text);
         c.path.push({ year: 'Parcoursup', kind: 'title', text: FORMATIONS[f].label });
-        if (f === 'prepa' || f === 'iep') this.highlight(c, `entre en ${FORMATIONS[f].label.toLowerCase()}`, 'good');
+        if (f === 'prepa' || f === 'prepa_privee' || f === 'iep') this.highlight(c, `entre en ${FORMATIONS[f].label.toLowerCase()}`, 'good');
       }
     }
   }
@@ -1002,6 +1002,17 @@ export class ExposeGame {
       this.flash(best, '🏅 Bourse au mérite : tu reçois 3 000 €');
       this.pop(best, '🏅 +3 000 €', 'good');
       this.push(`🏅 Bourse au mérite : ${this.nameOf(best)} (${fmtGrade(best.grade)}/20) reçoit 3 000 €`, 'admin');
+    } else if (eventId === 'greve') {
+      // Grève générale pour les salaires : salariés et fonctionnaires, hors cadres et chefs d'entreprise
+      const workers = this.list.filter((c) => c.job && !['cadre', 'chef', 'chomage', 'fonction_a'].includes(c.job));
+      if (!workers.length) return 'Personne n’est salarié pour l’instant (à déclencher dans la vie active)';
+      const won = this.roll(0.5);
+      for (const c of workers) {
+        c.budget += won ? 1_000 : -400;
+        c.path.push({ year: this.step.slide.title, kind: 'event', text: won ? 'Grève générale : hausse obtenue' : 'Grève générale : salaire perdu' });
+        this.flash(c, won ? '✊ Grève générale : hausse de salaire obtenue (+1 000 €)' : '✊ Grève générale : 4 jours sans salaire, rien d’obtenu (−400 €)');
+      }
+      this.push(`✊ Grève générale : ${workers.length} salarié·e·s, ${won ? 'hausse de salaire obtenue (+1 000 €)' : 'rien d’obtenu (−400 €)'}`, 'admin');
     } else return 'Événement inconnu';
     this.changed();
     return null;
@@ -1358,9 +1369,9 @@ export class ExposeGame {
         const fin = this.psFinal ?? new Map();
         return {
           kind: 'parcoursupFinal',
-          formations: FORMATION_IDS.map((id) => ({ id, label: FORMATIONS[id].label, emoji: FORMATIONS[id].emoji, capacity: cap[id], selective: id === 'prepa' || id === 'iep' || id === 'ecole', players: list.filter((c) => fin.get(c.id) === id).map((c) => c.id) })),
+          formations: FORMATION_IDS.map((id) => ({ id, label: FORMATIONS[id].label, emoji: FORMATIONS[id].emoji, capacity: cap[id], selective: id === 'prepa' || id === 'prepa_privee' || id === 'iep' || id === 'ecole', players: list.filter((c) => fin.get(c.id) === id).map((c) => c.id) })),
           vieActive: list.filter((c) => fin.get(c.id) === 'vie_active').map((c) => c.id),
-          selectiveByOrigin: byOrigin((c) => (c.formation === 'prepa' || c.formation === 'iep' || c.formation === 'ecole' ? 1 : 0)),
+          selectiveByOrigin: byOrigin((c) => (c.formation === 'prepa' || c.formation === 'prepa_privee' || c.formation === 'iep' || c.formation === 'ecole' ? 1 : 0)),
         };
       }
       case 'diploma': {

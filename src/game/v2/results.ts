@@ -83,6 +83,7 @@ export function computeDiploma(c: Character): PersonalOutcome {
   let text: string;
   switch (c.formation) {
     case 'prepa':
+    case 'prepa_privee':
       d = g >= 12 ? 'grande_ecole' : 'licence';
       text = g >= 12 ? 'Concours réussi : diplôme de grande école.' : 'Concours manqués : équivalence de licence.';
       break;
@@ -356,7 +357,7 @@ export function statLines(chars: Character[], finals: Map<string, FinalOutcome>)
   return [
     line('N’ont jamais vu la prépa', '%', (l) => pct(l, (c) => c.stats.hiddenSelective), null),
     line('Bac avec mention', '%', (l) => pct(l, (c) => !!c.mention), null),
-    line('Formation sélective (prépa, IEP, école)', '%', (l) => pct(l, (c) => c.formation === 'prepa' || c.formation === 'iep' || c.formation === 'ecole'), 'Accès : écart de ×2 à ×4'),
+    line('Formation sélective (prépa, IEP, école)', '%', (l) => pct(l, (c) => c.formation === 'prepa' || c.formation === 'prepa_privee' || c.formation === 'iep' || c.formation === 'ecole'), 'Accès : écart de ×2 à ×4'),
     line('Jetons de job imposés (moyenne)', '', (l) => round1(avg(l, (c) => c.stats.forcedJobs))),
     line('Diplômé·e d’un bac+5', '%', (l) => pct(l, (c) => DIPLOMA_LEVEL[c.diploma ?? 'aucun'] >= 5), 'Réel : 48 % (cadres) / 10 % (modestes)'),
     line('Cadre ou chef·fe d’entreprise', '%', (l) => pct(l, (c) => c.job === 'cadre' || c.job === 'chef' || c.job === 'fonction_a'), 'Réel : ×3,1 pour un fils de cadre'),

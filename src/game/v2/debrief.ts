@@ -174,7 +174,7 @@ const DEBRIEFS: DebriefDef[] = [
     id: 'etudes',
     title: 'Ce que coûtent les études',
     build: ({ chars }) => {
-      const selective = pctBy(chars, (c) => c.formation === 'prepa' || c.formation === 'iep' || c.formation === 'ecole');
+      const selective = pctBy(chars, (c) => c.formation === 'prepa' || c.formation === 'prepa_privee' || c.formation === 'iep' || c.formation === 'ecole');
       const jobs = avgBy(chars, (c) => c.stats.forcedJobs);
       const bourse = pctBy(chars, (c) => c.stats.askedBourse);
       return {

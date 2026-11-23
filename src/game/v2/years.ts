@@ -181,7 +181,7 @@ export function applyTokens(c: Character, year: YearDef, forced: { category: str
   const help = year.stage === 'lycee' ? HOME_HELP[c.origin] : (HOME_HELP[c.origin] + 1) / 2;
   let gain = 0;
   for (let k = 1; k <= study; k++) gain += (k <= 3 ? 1 : 0.5) * 0.36 * help * ef;
-  const drift = year.stage === 'lycee' ? 0.45 : 0.55 + (c.formation === 'prepa' ? 0.4 : 0);
+  const drift = year.stage === 'lycee' ? 0.45 : 0.55 + (c.formation === 'prepa' || c.formation === 'prepa_privee' ? 0.4 : 0);
   const schoolBonus = year.stage === 'lycee' ? SCHOOLS[c.school].gradeBonus : 0;
   const noise = (ctx.rnd() - 0.5) * 0.6;
   const jobPenalty = (t.job ?? 0) * 0.08;
@@ -262,7 +262,6 @@ const SECONDE: YearDef = {
         hint: 'Sélection + frais élevés',
         cost: 6_000,
         show: (c) => c.origin === 'superieure' || c.contacts >= 6,
-        requires: needGrade(12.5),
         resolve: (c) => ((c.school = 'elite'), (c.contacts = clamp(c.contacts + 1, 0, 10)), good('Admis·e dans un lycée d’élite : réseau et exigence.', { kind: 'open', text: 'Lycée privé d’élite' })),
       },
     ],
@@ -381,10 +380,10 @@ const ETUDES2: YearDef = {
       { id: 'seul', emoji: '✉️', label: 'Chercher un stage seul·e', hint: 'Pas garanti', show: (c) => c.formation !== 'vie_active', resolve: (c, ctx) => (ctx.roll(clamp(0.25 + 0.05 * c.contacts + (c.grade - 10) * 0.04, 0.1, 0.8)) ? ((c.promise = true), good('Une entreprise te propose un poste à la sortie !', { kind: 'open', text: 'Promesse d’embauche' })) : ((c.contacts = clamp(c.contacts + 0.5, 0, 10)), meh('Un stage formateur, sans promesse d’embauche.'))) },
       { id: 'erasmus', emoji: '🇪🇺', label: 'Semestre Erasmus', hint: 'Contacts ++', cost: 3_000, show: (c) => c.formation !== 'vie_active' && c.formation !== 'alternance', resolve: (c) => ((c.contacts = clamp(c.contacts + 1.5, 0, 10)), (c.grade = round1(clamp(c.grade + 0.2, 0, 20))), good('Un semestre à l’étranger : ton CV brille.', { kind: 'open', text: 'Erasmus' })) },
       { id: 'master', emoji: '📜', label: 'Candidater en master sélectif', hint: 'Bac+5', show: (c) => c.formation === 'licence', requires: needGrade(12), resolve: (c, ctx) => (ctx.roll(clamp(0.35 + (c.grade - 12) * 0.15 + c.contacts * 0.03, 0.2, 0.9)) ? ((c.masterTrack = true), good('Admis·e en master !', { kind: 'open', text: 'Master' })) : bad('Refusé·e partout : ce sera la licence.', { kind: 'close', text: 'Master refusé' })) },
-      { id: 'concours', emoji: '🔥', label: 'Tout donner pour les concours', hint: 'Moyenne + · énergie −', show: (c) => c.formation === 'prepa', resolve: (c) => ((c.grade = round1(clamp(c.grade + 0.6, 0, 20))), (c.energy = round1(clamp(c.energy - 1, 0, 5))), meh('Des mois de travail acharné : +0,6, −1 énergie.')) },
+      { id: 'concours', emoji: '🔥', label: 'Tout donner pour les concours', hint: 'Moyenne + · énergie −', show: (c) => c.formation === 'prepa' || c.formation === 'prepa_privee', resolve: (c) => ((c.grade = round1(clamp(c.grade + 0.6, 0, 20))), (c.energy = round1(clamp(c.energy - 1, 0, 5))), meh('Des mois de travail acharné : +0,6, −1 énergie.')) },
       { id: 'promotion', emoji: '📈', label: 'Viser un CDI dans ton entreprise', show: (c) => c.formation === 'vie_active', resolve: (c, ctx) => (ctx.roll(0.5) ? ((c.promise = true), good('Ton CDD devient un CDI.')) : meh('Pas de CDI pour l’instant.')) },
     ],
-    fallback: (c) => (c.formation === 'vie_active' ? 'promotion' : c.formation === 'prepa' ? 'concours' : 'seul'),
+    fallback: (c) => (c.formation === 'vie_active' ? 'promotion' : c.formation === 'prepa' || c.formation === 'prepa_privee' ? 'concours' : 'seul'),
   },
 };
 
@@ -566,6 +565,16 @@ const SHOCKS: Shock[] = [
       c.jobYears = 0;
       return { emoji: '📉', text: `Licenciement économique : tu perds ton poste (${JOB_LABEL[before as Job]})`, tone: 'bad' };
     },
+  },
+  {
+    id: 'greve',
+    stage: 'travail',
+    // Grève dans l'entreprise : salariés du privé, hors cadres et chefs d'entreprise
+    weight: (c) => (c.job === 'ouvrier' || c.job === 'employe' || c.job === 'intermediaire' ? 1 : 0),
+    apply: (c, ctx) =>
+      ctx.roll(0.5)
+        ? ((c.budget += 600), { emoji: '✊', text: 'Grève dans ton entreprise : 3 jours sans salaire, mais une hausse obtenue (+600 € net sur l’année)', tone: 'good' as const })
+        : ((c.budget -= 300), { emoji: '✊', text: 'Grève dans ton entreprise : 3 jours sans salaire, rien d’obtenu (−300 €)', tone: 'bad' as const }),
   },
   { id: 'prime', stage: 'travail', weight: (c) => (c.job && c.job !== 'chomage' ? 1 : 0), apply: (c) => ((c.budget += 2_000), { emoji: '💶', text: 'Prime exceptionnelle : +2 000 €', tone: 'good' }) },
 ];

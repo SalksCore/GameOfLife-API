@@ -316,6 +316,7 @@ export const COLLECTIVE_EVENTS: GameEventInfo[] = [
   { id: 'crise', emoji: '📉', label: 'Crise économique', description: 'Licenciements plus probables cette année' },
   { id: 'heritage', emoji: '🏰', label: 'Héritage', description: 'Un joueur au hasard reçoit 20 000 €' },
   { id: 'merite', emoji: '🏅', label: 'Bourse au mérite', description: 'Le meilleur joueur populaire reçoit 3 000 €' },
+  { id: 'greve', emoji: '✊', label: 'Grève générale', description: 'Salariés (hors cadres) : hausse obtenue ou jours de salaire perdus' },
 ];
 
 // ================================================================= Cartes « Le saviez-vous » (E5)
