@@ -70,7 +70,7 @@ const STEPS: StepDef[] = [
     ref: 'seconde',
     who: 'A puis B',
     cards: ['F4', 'F3'],
-    plan: 60,
+    plan: 90,
     slide: slide('Seconde', 'Ton lycée', [], 'A : « Vous entrez en Seconde, dans le lycée de votre quartier. Sauf si vous trouvez un moyen d’en changer. » B : carte F4.\nPrivé d’élite payé : « Ses parents ont tout payé. Un joueur populaire aurait dû sortir l’argent lui-même. »\nDérogation refusée : « Pour l’avoir, il faut connaître les bonnes options. Ça s’apprend en famille. »'),
   },
   {
@@ -79,7 +79,7 @@ const STEPS: StepDef[] = [
     ref: 'premiere',
     who: 'A puis B',
     cards: ['F1'],
-    plan: 60,
+    plan: 120,
     slide: slide('Première', 'Tes spécialités', [], 'B : « Regardez la colonne populaire. Un jeton sur six part pour aider à la maison, et sans aide aux devoirs, chaque heure de travail rapporte moins. »\nAvis contesté : « Ses parents ont obtenu un rendez-vous. En classe populaire, l’option n’apparaît même pas. »\nVoie pro : « Il touche un salaire d’apprenti, mais la prépa et Sciences Po viennent de se fermer. »'),
   },
   {
@@ -88,7 +88,7 @@ const STEPS: StepDef[] = [
     ref: 'terminale',
     who: 'B',
     cards: ['F5'],
-    plan: 60,
+    plan: 120,
     slide: slide('Terminale', 'Préparer l’après-bac', [], '« Certains ont payé un coach Parcoursup à 1 200 €. D’autres ne savent même pas que la prépa existe. »\nCoaching : « Sa lettre sera meilleure, et il découvre des filières que les autres ne voient pas. »\nCordées : « Les Cordées aident vraiment, mais il faut 12 de moyenne et il n’y a pas de place pour tout le monde. »'),
   },
   {
@@ -96,7 +96,7 @@ const STEPS: StepDef[] = [
     kind: 'bac',
     who: 'B',
     cards: ['F2'],
-    plan: 45,
+    plan: 75,
     slide: slide('Résultats du bac', 'Fin de la première partie', [], '« Fin de la première partie. Même jeu, mêmes règles, mais pas les mêmes mentions. Ce n’est pas un problème de travail, c’est ce que la famille apporte. »\nUn joueur populaire devant : « Ça arrive, et heureusement. Mais regardez la colonne entière : en moyenne, l’écart reste. » (F10)'),
   },
   {
@@ -126,7 +126,7 @@ const STEPS: StepDef[] = [
     kind: 'parcoursupFinal',
     who: 'A',
     cards: ['F7'],
-    plan: 30,
+    plan: 60,
     slide: slide('Parcoursup : les affectations', 'Qui entre où', [], '« Voilà qui entre en prépa, à Sciences Po, en école de commerce, et qui finit en phase complémentaire. »\nPersonne de populaire en prépa : « Ce n’est pas une question de talent. Une partie d’entre eux ne savait pas que ça existait. »'),
   },
   {
@@ -135,7 +135,7 @@ const STEPS: StepDef[] = [
     ref: 'etudes1',
     who: 'B',
     cards: ['F20'],
-    plan: 60,
+    plan: 90,
     slide: slide('Première année d’études', 'Ton logement', [], '« Certains ont déjà 2 ou 3 jetons pris par un job pour payer le loyer. Ça laisse moins de temps pour réviser. »\nÉcole payée par les parents : « Un bac+5 qui s’achète, pendant qu’un autre lâche la licence pour travailler. »\nCROUS refusé : « Liste d’attente, retour chez les parents, deux heures de transport par jour. »'),
   },
   {
@@ -144,7 +144,7 @@ const STEPS: StepDef[] = [
     ref: 'etudes2',
     who: 'A',
     cards: ['F8'],
-    plan: 60,
+    plan: 120,
     slide: slide('Fin d’études', 'Stage et suite', [], '« Le stage, certains l’ont trouvé grâce à un ami de leurs parents. Avec une promesse d’embauche au bout. »\nStage piston : « Le carnet d’adresses des parents vient de lui trouver un emploi. »\nMaster refusé : « Sans master, le bac+5 s’éloigne, et les postes de cadre avec. »'),
   },
   {
@@ -152,7 +152,7 @@ const STEPS: StepDef[] = [
     kind: 'diploma',
     who: 'B',
     cards: ['F7'],
-    plan: 30,
+    plan: 60,
     slide: slide('Remise des diplômes', 'Fin de la deuxième partie', [], '« Fin de la deuxième partie. Les inégalités de départ sont devenues des écarts de diplômes. »\nAbandon de licence : « Travailler à mi-temps à côté fait baisser les chances de réussite de 29 %. » (F20)'),
   },
   {
@@ -160,7 +160,7 @@ const STEPS: StepDef[] = [
     kind: 'jobs',
     who: 'A',
     cards: ['F17', 'F18'],
-    plan: 60,
+    plan: 90,
     slide: slide('Premier emploi', 'Les mieux classés choisissent d’abord', [], '« Troisième partie : le travail. Il y a peu de postes de cadres. Les mieux classés choisissent en premier. Le diplôme compte, le réseau aussi, et parfois le nom. »\nConcours réussi : « Le concours ne regarde que la moyenne. C’est la voie la plus juste du jeu. »\nChômage : « Sans diplôme, plus de 40 % des jeunes sont au chômage. »\nEffet adresse : « À CV égal, venir d’un quartier sensible divise presque par deux les chances d’entretien. »'),
   },
   {
@@ -169,7 +169,7 @@ const STEPS: StepDef[] = [
     ref: 'travail1',
     who: 'B',
     cards: ['F9'],
-    plan: 60,
+    plan: 90,
     slide: slide('Premières années de travail', 'Ta carrière', [], '« Au début, beaucoup enchaînent les contrats courts. Et pour devenir cadre sans bac+5, il faut du réseau. »\nPlafond de verre : « Le poste de cadre va à un diplômé d’école. Sans bac+5 ni réseau, ça bloque. »\nLicenciement : « Avec 6 contacts, on lui retrouve un poste. Sans, c’est le chômage. »'),
   },
   {
@@ -178,7 +178,7 @@ const STEPS: StepDef[] = [
     ref: 'travail2',
     who: 'B',
     cards: ['F11'],
-    plan: 60,
+    plan: 90,
     slide: slide('Dix ans plus tard', 'Un nouveau cap', [], '« Pour créer son entreprise, il faut 15 000 €. La famille en donne 0, 8 000 ou 40 000 selon la classe. »\nFaillite : « 15 000 € perdus. Sans famille derrière, on ne repart pas pareil. »\nEntreprise créée : « 40 000 € donnés en classe supérieure, rien en classe populaire. »'),
   },
   {
@@ -186,7 +186,7 @@ const STEPS: StepDef[] = [
     kind: 'final',
     who: 'A',
     cards: ['F12', 'F13'],
-    plan: 90,
+    plan: 120,
     slide: slide('La pyramide', 'Qui est arrivé où ?', [], '« Regardez le podium, et à côté de chaque nom, la classe de départ. Combien sont restés dans leur classe ? »\nR révèle les étages un par un, puis le podium.\nJoueur populaire sur le podium : « Il a monté, avec l’étoile. C’est possible, mais regardez combien sont restés en bas. »'),
   },
   {
