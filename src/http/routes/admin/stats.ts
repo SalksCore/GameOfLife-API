@@ -40,7 +40,7 @@ export async function statsRoutes(app: FastifyInstance) {
       db
         .select({
           total: count(),
-          active7d: sql<number>`count(*) filter (where ${players.lastLoginAt} >= ${weekAgo})`.mapWith(Number),
+          active7d: sql<number>`count(*) filter (where ${players.lastLoginAt} >= ${weekAgo.toISOString()}::timestamptz)`.mapWith(Number),
           suspended: sql<number>`count(*) filter (where ${players.bannedAt} is not null)`.mapWith(Number),
           neverLoggedIn: sql<number>`count(*) filter (where ${players.lastLoginAt} is null and ${players.bannedAt} is null)`.mapWith(Number),
         })
