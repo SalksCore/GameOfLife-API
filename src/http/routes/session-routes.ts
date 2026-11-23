@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { findAccount, touchLogin } from '../../auth/accounts.js';
 import { lockRemaining, recordFailure, recordSuccess } from '../../auth/login-throttle.js';
+import { normalizePassword } from '../../auth/accounts.js';
 import { verifyPassword } from '../../auth/password.js';
 import {
   issueRefreshToken,
@@ -83,7 +84,12 @@ export function sessionRoutes(app: FastifyInstance, opts: Options) {
       }
 
       const account = await findAccount(kind, { username });
-      const valid = await verifyPassword(account?.passwordHash ?? null, password);
+      let valid = await verifyPassword(account?.passwordHash ?? null, password);
+      // Joueurs : le mot de passe imprimé se tape aussi « K7MX P4RZ » ou « k7mx-p4rz »
+      if (!valid && account && kind === 'player') {
+        const typed = normalizePassword(password);
+        if (typed !== password && typed.length > 0) valid = await verifyPassword(account.passwordHash, typed);
+      }
       if (!account || !valid) {
         recordFailure(lockKey);
         req.log.info({ kind, username }, 'Échec de connexion');

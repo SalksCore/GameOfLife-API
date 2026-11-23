@@ -27,6 +27,7 @@ const listQuery = z.object({
   sort: z.enum(['recent', 'name', 'games', 'lastLogin']).default('recent'),
 });
 const idParams = z.object({ id: z.uuid() });
+const resetManyBody = z.object({ scope: z.enum(['never', 'all']) });
 const nameField = z
   .string()
   .trim()
@@ -345,6 +346,34 @@ export async function playerRoutes(app: FastifyInstance) {
     app.realtime.kickPlayer(updated.id, 'Ton mot de passe a été changé, reconnecte-toi');
     await logAdminAction(req.account!.id, 'player.reset-password', updated.username, { playerId: updated.id });
     return { player: adminPlayer(updated), credentials: { username: updated.username, password } };
+  });
+
+  /**
+   * Fiches à découper : nouveaux mots de passe pour un groupe de joueurs (affichés une seule fois).
+   * « never » = jamais connectés ; « all » = tous les comptes non suspendus. Les sessions sont coupées.
+   */
+  app.post('/reset-passwords', async (req, reply) => {
+    const parsed = resetManyBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: 'Requête invalide' });
+    const filters: SQL[] = [isNull(players.bannedAt)];
+    if (parsed.data.scope === 'never') filters.push(isNull(players.lastLoginAt));
+    const targets = await db
+      .select()
+      .from(players)
+      .where(and(...filters))
+      .orderBy(asc(players.lastName), asc(players.firstName))
+      .limit(BULK_MAX + 1);
+    if (targets.length > BULK_MAX) return reply.status(400).send({ error: `Plus de ${BULK_MAX} comptes : affinez la sélection` });
+    const credentials = [];
+    for (const p of targets) {
+      const password = generatePassword();
+      await db.update(players).set({ passwordHash: await hashPassword(password), updatedAt: new Date() }).where(eq(players.id, p.id));
+      await revokeAllSessions('player', p.id);
+      app.realtime.kickPlayer(p.id, 'Ton mot de passe a été changé, reconnecte-toi');
+      credentials.push({ firstName: p.firstName, lastName: p.lastName, username: p.username, password });
+    }
+    await logAdminAction(req.account!.id, 'player.reset-password', `${credentials.length} comptes`, { details: parsed.data.scope === 'never' ? 'Jamais connectés' : 'Tous les comptes actifs' });
+    return { credentials };
   });
 
   /** Déconnecte le joueur de tous ses appareils. */

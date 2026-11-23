@@ -114,23 +114,21 @@ export async function generateUsername(firstName: string, lastName: string): Pro
   return `${base}${n}`;
 }
 
-// Mots simples, sans accents, faciles à dicter
-const WORDS = [
-  'Abeille', 'Acier', 'Aigle', 'Ancre', 'Arbre', 'Argent', 'Astre', 'Aurore', 'Avion', 'Balcon', 'Baleine', 'Bambou',
-  'Banane', 'Bateau', 'Bison', 'Bleuet', 'Bouton', 'Brume', 'Cactus', 'Cadre', 'Canard', 'Canyon', 'Carpe', 'Castor',
-  'Cerise', 'Chalet', 'Chamois', 'Citron', 'Cobra', 'Comete', 'Corail', 'Coyote', 'Crabe', 'Cristal', 'Cygne', 'Dauphin',
-  'Delta', 'Desert', 'Diamant', 'Dragon', 'Dune', 'Eclair', 'Ecureuil', 'Etoile', 'Falaise', 'Faucon', 'Figue', 'Flamme',
-  'Foret', 'Fougere', 'Fusee', 'Galaxie', 'Gazelle', 'Geyser', 'Girafe', 'Glacier', 'Granit', 'Griffon', 'Hibou', 'Horizon',
-  'Iceberg', 'Igloo', 'Jaguar', 'Jardin', 'Jungle', 'Kiwi', 'Koala', 'Lagon', 'Lama', 'Lavande', 'Lezard', 'Lichen',
-  'Lotus', 'Loutre', 'Lune', 'Lynx', 'Magma', 'Mangue', 'Marmotte', 'Meteore', 'Mimosa', 'Montagne', 'Mouette', 'Nuage',
-  'Oasis', 'Ocean', 'Olive', 'Orage', 'Orchidee', 'Ours', 'Panda', 'Papaye', 'Pelican', 'Phare', 'Pingouin', 'Pirate',
-  'Planete', 'Plume', 'Pollen', 'Prairie', 'Puma', 'Quartz', 'Radar', 'Rafale', 'Renard', 'Requin', 'Riviere', 'Robot',
-  'Rocher', 'Safari', 'Saphir', 'Saturne', 'Savane', 'Sequoia', 'Silex', 'Soleil', 'Sommet', 'Sorbet', 'Tempete', 'Tigre',
-  'Tonnerre', 'Toucan', 'Tulipe', 'Vallee', 'Vanille', 'Volcan', 'Zebre', 'Zephyr',
-];
+// Sans caractères ambigus (0/o, 1/l/i) : se recopie sans erreur depuis un papier
+const PASSWORD_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
+export const PASSWORD_LENGTH = 8;
 
-/** Mot de passe lisible et dictable : Tigre-Lune-Cactus-4821 (~34 bits d'entropie) */
+/**
+ * Mot de passe court et aléatoire, tout en minuscules : k7mxp4rz (31^8, ~40 bits).
+ * Imprimé en deux groupes de 4 sur la fiche ; la connexion ignore espaces, tirets et majuscules.
+ */
 export function generatePassword(): string {
-  const pick = () => WORDS[randomInt(WORDS.length)]!;
-  return `${pick()}-${pick()}-${pick()}-${String(randomInt(10_000)).padStart(4, '0')}`;
+  let out = '';
+  for (let i = 0; i < PASSWORD_LENGTH; i++) out += PASSWORD_ALPHABET[randomInt(PASSWORD_ALPHABET.length)];
+  return out;
+}
+
+/** Ce qu'un joueur tape, ramené à la forme générée (espaces, tirets et majuscules retirés). */
+export function normalizePassword(input: string): string {
+  return input.replace(/[\s-]+/g, '').toLowerCase();
 }

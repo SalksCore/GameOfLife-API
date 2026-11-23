@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 process.env.JWT_SECRET ??= 'x'.repeat(40);
-const { cleanName, generatePassword, slug } = await import('./accounts.js');
+const { cleanName, generatePassword, normalizePassword, slug } = await import('./accounts.js');
 
 describe('identifiants', () => {
   it('slug retire accents et caractères spéciaux', () => {
@@ -17,9 +17,10 @@ describe('identifiants', () => {
     expect(cleanName('  jean-éRIC   de la  fontaine ')).toBe('Jean-Éric De La Fontaine');
   });
 
-  it('mot de passe lisible et aléatoire', () => {
+  it('mot de passe court, aléatoire, sans caractère ambigu', () => {
     const a = generatePassword();
-    expect(a).toMatch(/^[A-Z][a-z]+-[A-Z][a-z]+-[A-Z][a-z]+-\d{4}$/);
+    expect(a).toMatch(/^[a-hjkmnp-z2-9]{8}$/);
+    expect(normalizePassword(`${a.slice(0, 4).toUpperCase()} - ${a.slice(4)}`)).toBe(a);
     expect(new Set(Array.from({ length: 50 }, generatePassword)).size).toBe(50);
   });
 });
