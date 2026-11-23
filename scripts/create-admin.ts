@@ -1,5 +1,6 @@
 /**
- * Crée un compte ADMIN (table `admins`, distincte des joueurs) ou réinitialise son mot de passe.
+ * Crée un compte ADMIN propriétaire (table `admins`, distincte des joueurs) ou réinitialise son mot de passe.
+ * Les autres comptes admin se créent ensuite depuis le panneau (page Équipe).
  * Usage : npm run admin:create -- <pseudo> <motdepasse>
  */
 import { eq } from 'drizzle-orm';
@@ -20,11 +21,11 @@ const passwordHash = await hashPassword(password);
 const [existing] = await db.select().from(admins).where(eq(admins.usernameKey, usernameKey)).limit(1);
 
 if (existing) {
-  await db.update(admins).set({ passwordHash, disabledAt: null }).where(eq(admins.id, existing.id));
+  await db.update(admins).set({ passwordHash, disabledAt: null, role: 'owner' }).where(eq(admins.id, existing.id));
   await revokeAllSessions('admin', existing.id);
   console.log(`Admin "${existing.username}" : mot de passe réinitialisé, sessions révoquées.`);
 } else {
-  await db.insert(admins).values({ username, usernameKey, passwordHash });
+  await db.insert(admins).values({ username, usernameKey, passwordHash, role: 'owner' });
   console.log(`Admin "${username}" créé.`);
 }
 await closeDb();

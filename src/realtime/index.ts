@@ -516,6 +516,13 @@ export function createRealtime(log: Logger) {
     io.in(playerRoom(playerId)).disconnectSockets(true);
   }
 
+  /** Coupe les connexions temps réel d'un compte admin (désactivé, supprimé, mot de passe changé). */
+  function kickAdmin(adminId: string) {
+    for (const s of admin.sockets.values()) {
+      if ((s.data as SocketData).identity?.id === adminId) s.disconnect(true);
+    }
+  }
+
   /** Sauvegarde de fin de partie : partie + participants + stats, en une transaction. */
   async function saveGame(r: GameResult) {
     await db.transaction(async (tx) => {
@@ -560,5 +567,5 @@ export function createRealtime(log: Logger) {
     io.engine.close();
   }
 
-  return { io, manager, kickPlayer, refreshPlayer, playerStatus, stats, close, restore };
+  return { io, manager, kickPlayer, kickAdmin, refreshPlayer, playerStatus, stats, close, restore };
 }

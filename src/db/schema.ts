@@ -7,6 +7,8 @@ export const admins = pgTable('admins', {
   username: text('username').notNull(),
   usernameKey: text('username_key').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
+  /** owner : gère aussi les comptes admin ; admin : tout le reste */
+  role: text('role', { enum: ['owner', 'admin'] }).notNull().default('admin'),
   disabledAt: timestamp('disabled_at', { withTimezone: true }),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

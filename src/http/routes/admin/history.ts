@@ -8,7 +8,7 @@ const idParams = z.object({ id: z.uuid() });
 const actionsQuery = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),
   /** Famille d'actions : player, room, settings, maintenance */
-  type: z.enum(['player', 'room', 'settings', 'maintenance']).optional(),
+  type: z.enum(['player', 'room', 'settings', 'maintenance', 'admin']).optional(),
 });
 const PAGE_SIZE = 50;
 
