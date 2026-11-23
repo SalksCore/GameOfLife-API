@@ -34,7 +34,7 @@ export class RoomManager {
   private readonly sweeper: NodeJS.Timeout;
 
   constructor(
-    private readonly output: Omit<RoomOutput, 'leave' | 'live'> & { live(roomId: string): void },
+    private readonly output: Omit<RoomOutput, 'leave' | 'live'> & { live(roomId: string): void; discard?(roomId: string): void },
     private readonly limits: ManagerLimits,
     private readonly timings?: RoomTimings,
   ) {
@@ -115,9 +115,31 @@ export class RoomManager {
     this.roomOf(playerId)?.disconnect(playerId);
   }
 
-  close(roomId: string, reason: string): Room | null {
+  /** Reprend une partie sauvegardée (démarrage du serveur) */
+  adopt(data: Record<string, unknown>): Room | null {
+    const info = data.info as { id: string; code: string } | undefined;
+    if (!info || this.rooms.has(info.id) || this.roomByCode.has(info.code)) return null;
+    const room = Room.restore(
+      data,
+      {
+        ...this.output,
+        leave: (playerId) => this.leave(playerId, 'Tu as été retiré de la partie'),
+        live: () => this.output.live(info.id),
+      },
+      this.timings,
+    );
+    this.rooms.set(room.id, room);
+    this.roomByCode.set(room.code, room);
+    for (const pid of room.memberIds()) this.roomOfPlayer.set(pid, room.id);
+    this.output.changed();
+    return room;
+  }
+
+  /** keep = arrêt du serveur : la sauvegarde est gardée pour la reprise */
+  close(roomId: string, reason: string, keep = false): Room | null {
     const room = this.rooms.get(roomId);
     if (!room) return null;
+    if (!keep) this.output.discard?.(roomId);
     this.rooms.delete(roomId);
     this.roomByCode.delete(room.code);
     for (const pid of room.memberIds()) this.roomOfPlayer.delete(pid);
@@ -126,9 +148,14 @@ export class RoomManager {
     return room;
   }
 
+  /** Arrêt du serveur : les parties sont fermées mais leurs sauvegardes gardées */
   closeAll(reason: string): void {
     clearInterval(this.sweeper);
-    for (const id of [...this.rooms.keys()]) this.close(id, reason);
+    for (const id of [...this.rooms.keys()]) this.close(id, reason, true);
+  }
+
+  all(): Room[] {
+    return [...this.rooms.values()];
   }
 
   private closeIdle(): void {

@@ -25,6 +25,7 @@ import {
 } from '../protocol.js';
 import { COLLECTIVE_EVENTS, COMPARED_QUESTIONS, POLLS, REFORMS } from './content.js';
 import { buildDebrief } from './debrief.js';
+import { decode, encode } from './snapshot.js';
 import { MINI_TITLES, miniInput, miniView, resolveMini } from './minigames.js';
 import {
   DIPLOMA_LABEL,
@@ -111,6 +112,14 @@ const DEFAULT_TIMINGS: GameTimings = { wishesSeconds: 75, responseSeconds: 60, j
 type Flash = { id: string; text: string; until: number };
 type Pop = { id: string; text: string; tone: Tone; until: number };
 
+/** Champs de l'état sauvegardés (tout sauf les dépendances, le chrono et les animations) */
+const SNAPSHOT_FIELDS = [
+  'cursor', 'furthest', 'startedAt', 'chars', 'charOf', 'pending', 'drawn', 'closed', 'lecture', 'revealed',
+  'polls', 'pollOpen', 'votes', 'reform', 'yearChoices', 'crisis', 'wishes', 'wishesDone', 'ps', 'accepted',
+  'responded', 'psFinal', 'psFinalText', 'bacOutcome', 'diplomaOutcome', 'strategies', 'jobsDone', 'jobOutcome',
+  'finals', 'finalRevealed', 'card', 'feed',
+] as const;
+
 /** Lecture (débrief) affichée au second appui sur R, étape par étape */
 const LECTURES: Record<string, string> = {
   premiere: 'lycee',
@@ -130,7 +139,7 @@ const GAME_KINDS = new Set(['draw', 'year', 'bac', 'vote', 'parcoursup', 'parcou
 export class ExposeGame {
   cursor = 0;
   furthest = 0;
-  readonly startedAt = Date.now();
+  startedAt = Date.now();
 
   private readonly chars = new Map<string, Character>();
   /** joueur -> personnage (binôme : deux joueurs, un personnage) */
@@ -207,6 +216,41 @@ export class ExposeGame {
   }
   /** Personnages à créer au tirage : id -> membres */
   private readonly pending = new Map<string, string[]>();
+
+  // ================================================================= Sauvegarde (reprise après un crash)
+
+  /** État complet de la partie, en JSON, pour la sauvegarde en base */
+  snapshot(): Record<string, unknown> {
+    const data: Record<string, unknown> = { v: 1, savedAt: Date.now() };
+    for (const f of SNAPSHOT_FIELDS) data[f] = encode((this as unknown as Record<string, unknown>)[f]);
+    // Chrono : on garde le temps restant ; la partie reprendra en pause
+    data.remaining = this.paused ? this.remaining : this.endsAt !== null ? Math.max(0, this.endsAt - Date.now()) : null;
+    return data;
+  }
+
+  /** Recrée une partie à partir d'une sauvegarde : elle reprend en pause, à la même étape */
+  static restore(
+    data: Record<string, unknown>,
+    deps: {
+      deck: DeckStep[];
+      cards: FactCard[];
+      roles: Map<string, SocialClass>;
+      config: GameConfig;
+      getMembers: () => Map<string, GameMember>;
+      hooks: GameHooks;
+      rnd?: () => number;
+      timings?: GameTimings;
+    },
+  ): ExposeGame {
+    const g = new ExposeGame(deps.deck, deps.cards, [], deps.roles, new Map(), deps.config, deps.getMembers, deps.hooks, deps.rnd, deps.timings);
+    const target = g as unknown as Record<string, unknown>;
+    for (const f of SNAPSHOT_FIELDS) if (f in data) target[f] = decode(data[f]);
+    g.paused = true;
+    g.endsAt = null;
+    g.remaining = typeof data.remaining === 'number' ? data.remaining : null;
+    g.push('♻️ Partie reprise après un redémarrage du serveur : relancez avec Reprendre (P)', 'admin');
+    return g;
+  }
 
   // ================================================================= Navigation
 

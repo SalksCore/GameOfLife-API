@@ -118,6 +118,15 @@ export const playerSessions = pgTable(
   (t) => [index('player_sessions_player_idx').on(t.accountId)],
 );
 
+// ============ Parties en cours : sauvegarde pour reprendre après un crash ============
+
+export const roomSnapshots = pgTable('room_snapshots', {
+  roomId: uuid('room_id').primaryKey(),
+  code: text('code').notNull(),
+  data: jsonb('data').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ============ Sauvegarde des parties ============
 
 export const games = pgTable(

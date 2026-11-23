@@ -15,6 +15,8 @@ const stopRetention = scheduleRetention(app.log);
 const realtime = createRealtime(app.log);
 app.decorate('realtime', realtime);
 realtime.io.attach(app.server);
+// Parties en cours sauvegardées : reprises en pause, les joueurs se reconnectent seuls
+await realtime.restore();
 
 await app.listen({ host: env.HOST, port: env.PORT });
 
@@ -27,7 +29,7 @@ async function shutdown(signal: string) {
   force.unref();
   try {
     stopRetention();
-    realtime.close();
+    await realtime.close();
     await app.close();
     await closeDb();
     process.exit(0);

@@ -23,6 +23,7 @@ import {
 } from '../game/protocol.js';
 import type { GameResult, Room } from '../game/room.js';
 import { RoomManager, type PlayerIdentity } from '../game/room-manager.js';
+import { createPersistence } from '../game/persistence.js';
 import type { Logger } from '../utils/logger.js';
 import { getExpose, getGeneral, getMaintenance, settingsEvents, type MaintenanceSettings } from '../settings.js';
 import { TokenBucket } from '../utils/token-bucket.js';
@@ -142,8 +143,15 @@ export function createRealtime(log: Logger) {
     );
   };
 
+  // Sauvegarde continue des parties : reprise automatique après un crash
+  const persistence = createPersistence(log);
+
   const manager = new RoomManager({
-    live: pushLive,
+    live: (roomId) => {
+      pushLive(roomId);
+      persistence.schedule(roomId);
+    },
+    discard: (roomId) => persistence.discard(roomId),
     state: (playerId, view) => io.to(playerRoom(playerId)).emit('room:state', view),
     chat: (playerIds, msg) => {
       if (playerIds.length) io.to(playerIds.map(playerRoom)).emit('chat:message', msg);
@@ -530,7 +538,16 @@ export function createRealtime(log: Logger) {
     });
   }
 
-  function close() {
+  persistence.attach(manager);
+
+  /** Démarrage : reprend les parties sauvegardées */
+  async function restore() {
+    return persistence.restore(getGeneral().idleTimeoutHours * 3_600_000);
+  }
+
+  async function close() {
+    // Sauvegarde finale avant l'arrêt : les parties seront reprises au redémarrage
+    await persistence.flush();
     for (const t of liveTimers.values()) clearTimeout(t);
     liveTimers.clear();
     clearInterval(statsTimer);
@@ -543,5 +560,5 @@ export function createRealtime(log: Logger) {
     io.engine.close();
   }
 
-  return { io, manager, kickPlayer, refreshPlayer, playerStatus, stats, close };
+  return { io, manager, kickPlayer, refreshPlayer, playerStatus, stats, close, restore };
 }

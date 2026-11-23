@@ -7,6 +7,8 @@ import {
   type ChatMessage,
   type ControlView,
   type DeckAction,
+  type DeckStep,
+  type FactCard,
   type ExposeContent,
   type GameConfig,
   type GameExport,
@@ -79,7 +81,7 @@ type Result = string | null; // message d'erreur ou null si OK
 export class Room {
   phase: Phase = 'lobby';
   lastActivity = Date.now();
-  readonly createdAt = Date.now();
+  createdAt = Date.now();
   private startedAt: Date | null = null;
   private readonly members = new Map<string, Member>();
   private readonly leaveTimers = new Map<string, NodeJS.Timeout>();
@@ -118,6 +120,69 @@ export class Room {
 
   memberIds(): string[] {
     return [...this.members.keys()];
+  }
+
+  // ---------- Sauvegarde (reprise après un crash) ----------
+
+  /** État de la salle et de la partie, pour la sauvegarde en base */
+  snapshot(): Record<string, unknown> {
+    return {
+      v: 1,
+      info: this.info,
+      phase: this.phase,
+      startedAt: this.startedAt?.getTime() ?? null,
+      createdAt: this.createdAt,
+      members: [...this.members.values()].map(({ connected: _c, ...m }) => m),
+      roles: [...this.roles],
+      pairs: [...this.pairs],
+      config: this.config,
+      deck: this.game ? this.deckSnapshot : null,
+      cards: this.game ? this.cardsSnapshot : null,
+      game: this.game?.snapshot() ?? null,
+    };
+  }
+
+  /** Recrée une salle sauvegardée : joueurs hors ligne (ils se reconnectent seuls), partie en pause */
+  static restore(data: Record<string, unknown>, out: RoomOutput, timings: RoomTimings = DEFAULT_TIMINGS): Room {
+    const room = new Room(data.info as RoomInit, out, timings);
+    room.phase = data.phase as Phase;
+    if (typeof data.createdAt === 'number') room.createdAt = data.createdAt;
+    room.startedAt = typeof data.startedAt === 'number' ? new Date(data.startedAt) : null;
+    for (const m of data.members as Omit<Member, 'connected'>[]) room.members.set(m.id, { ...m, connected: false });
+    for (const [k, v] of data.roles as [string, SocialClass][]) room.roles.set(k, v);
+    for (const [k, v] of data.pairs as [string, string][]) room.pairs.set(k, v);
+    room.config = { ...DEFAULT_GAME_CONFIG, ...(data.config as GameConfig) };
+    if (data.game && data.deck) {
+      room.deckSnapshot = data.deck as DeckStep[];
+      room.cardsSnapshot = (data.cards as FactCard[]) ?? [];
+      room.game = ExposeGame.restore(data.game as Record<string, unknown>, {
+        deck: room.deckSnapshot,
+        cards: room.cardsSnapshot,
+        roles: room.roles,
+        config: room.config,
+        getMembers: () => room.members,
+        hooks: room.gameHooks(),
+        rnd: timings.rnd,
+        timings: timings.game,
+      });
+    }
+    return room;
+  }
+
+  private deckSnapshot: DeckStep[] = [];
+  private cardsSnapshot: FactCard[] = [];
+
+  private gameHooks() {
+    return {
+      players: (ids?: string[]) => {
+        if (this.closed) return;
+        for (const id of ids ?? this.members.keys()) {
+          if (this.members.has(id)) this.out.state(id, this.viewFor(id));
+        }
+        this.lastActivity = Date.now();
+      },
+      live: () => this.out.live(),
+    };
   }
 
   // ---------- Vues ----------
@@ -399,24 +464,17 @@ export class Room {
     this.leaveTimers.clear();
     this.pairRequests.clear();
     const expose = this.content();
+    this.deckSnapshot = buildDeck(expose);
+    this.cardsSnapshot = expose.cards;
     this.game = new ExposeGame(
-      buildDeck(expose),
-      expose.cards,
+      this.deckSnapshot,
+      this.cardsSnapshot,
       [...this.members.values()],
       this.roles,
       new Map(this.pairs),
       this.config,
       () => this.members,
-      {
-        players: (ids) => {
-          if (this.closed) return;
-          for (const id of ids ?? this.members.keys()) {
-            if (this.members.has(id)) this.out.state(id, this.viewFor(id));
-          }
-          this.lastActivity = Date.now();
-        },
-        live: () => this.out.live(),
-      },
+      this.gameHooks(),
       this.timings.rnd,
       this.timings.game,
     );
