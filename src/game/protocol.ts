@@ -155,6 +155,8 @@ export interface PathItem {
   year: string;
   kind: 'title' | 'open' | 'close' | 'event' | 'choice';
   text: string;
+  /** Identifiant stable de la décision (indépendant du libellé affiché) ; absent des anciennes parties. */
+  action?: string;
 }
 
 export interface ReportLine {

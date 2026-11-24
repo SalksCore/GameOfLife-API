@@ -40,6 +40,16 @@ function avgBy(chars: Character[], f: (c: Character) => number): Record<SocialCl
   return out;
 }
 const hasPath = (c: Character, text: string) => c.path.some((p) => p.text.includes(text));
+/**
+ * Décision identifiée par son id stable (et non par son libellé), pour que les textes puissent être
+ * réécrits sans fausser les statistiques. `kind` restreint à un résultat (ex. « open » = réussite).
+ * Les parties enregistrées avant l'ajout de `action` n'ont pas cet identifiant : repli sur le texte.
+ */
+function didAction(c: Character, action: string, kind?: 'open' | 'close' | 'choice', legacyText?: string): boolean {
+  if (c.path.some((p) => p.action === action && (!kind || p.kind === kind))) return true;
+  const legacy = !c.path.some((p) => p.action !== undefined);
+  return legacy && legacyText !== undefined && hasPath(c, legacyText);
+}
 
 /** « 3 fois plus », « 1,5 fois plus », ou null si non calculable */
 function ratio(a: number | null, b: number | null): number | null {
@@ -50,10 +60,8 @@ function ratio(a: number | null, b: number | null): number | null {
 
 /** Compare l'écart de la partie (ratio supérieure / populaire) à l'écart réel */
 function compareGap(game: number | null, real: number): string {
-  if (game === null) return 'Pas assez de joueurs dans une des classes pour comparer avec la réalité.';
-  if (game >= real * 0.66 && game <= real * 1.5) return `Notre partie reproduit un écart du même ordre que la réalité (×${fmt(game)} contre ×${fmt(real)}).`;
-  if (game < real) return `Notre partie est un peu moins inégale que la réalité (×${fmt(game)} contre ×${fmt(real)}) : petit groupe, part de hasard.`;
-  return `Notre partie est plus inégale que la réalité (×${fmt(game)} contre ×${fmt(real)}) : petit groupe, le hasard amplifie les écarts.`;
+  if (game === null) return 'Le rapport entre les deux groupes ne peut pas être calculé pour cette partie.';
+  return `Dans cette partie, le rapport est de ×${fmt(game)}. Le chiffre cité pour la réalité est de ×${fmt(real)} : les populations et les catégories ne sont pas nécessairement comparables.`;
 }
 
 /** Phrase « X % des joueurs supérieurs contre Y % des joueurs populaires » */
@@ -76,7 +84,7 @@ const DEBRIEFS: DebriefDef[] = [
       const gapEnd = end.superieure !== null && end.populaire !== null ? round1(end.superieure - end.populaire) : null;
       return {
         eyebrow: 'Partie I · Au lycée',
-        title: 'Un écart qui grandit au lycée',
+        title: 'L’évolution des moyennes au lycée',
         question: 'À travail égal, les notes avancent-elles au même rythme ?',
         charts: [
           { label: 'Moyenne après la Seconde', unit: '/20', game: start, real: null, max: 20 },
@@ -99,8 +107,8 @@ const DEBRIEFS: DebriefDef[] = [
     title: 'Le lycée où l’on va',
     build: ({ chars }) => {
       const prive = pctBy(chars, (c) => c.school === 'prive' || c.school === 'elite');
-      const derog = pctBy(chars, (c) => hasPath(c, 'Dérogation'));
-      const contest = pctBy(chars, (c) => hasPath(c, 'contesté'));
+      const derog = pctBy(chars, (c) => didAction(c, 'derogation', 'open', 'Dérogation'));
+      const contest = pctBy(chars, (c) => didAction(c, 'contester', 'open', 'contesté'));
       return {
         eyebrow: 'Partie I · Au lycée',
         title: 'Changer de lycée, ça s’achète et ça s’apprend',
@@ -126,7 +134,7 @@ const DEBRIEFS: DebriefDef[] = [
     title: 'L’information inégale',
     build: ({ chars }) => {
       const blind = pctBy(chars, (c) => c.stats.hiddenSelective);
-      const coaching = pctBy(chars, (c) => hasPath(c, 'Coaching'));
+      const coaching = pctBy(chars, (c) => didAction(c, 'coaching', 'choice', 'Coaching'));
       const cordees = pctBy(chars, (c) => c.cordees);
       return {
         eyebrow: 'Partie II · L’orientation',
@@ -193,7 +201,7 @@ const DEBRIEFS: DebriefDef[] = [
           'L’école de commerce (11 000 € par an) n’est pas très sélective : elle est surtout chère. La licence est presque gratuite, mais exigeante quand on travaille à côté.',
           bourse.populaire !== null && bourse.populaire < 100 ? `${100 - bourse.populaire} % des joueurs populaires n’ont pas demandé la bourse à laquelle ils avaient droit : c’est le non-recours.` : 'Tous les joueurs populaires ont demandé leur bourse.',
         ],
-        reality: { figure: '−29 %', text: 'Travailler au moins à mi-temps pendant ses études fait baisser de 29 % les chances de réussir ses examens.', source: 'OVE, rapport du Sénat n° 436', cards: ['F20', 'F7'] },
+        reality: { figure: '−29 %', text: 'Une étude citée par le Sénat rapporte un lien entre un emploi étudiant prenant et une moindre réussite aux examens. Ce constat ne démontre pas, à lui seul, une relation de cause à effet.', source: 'OVE, rapport du Sénat n° 436', cards: ['F20', 'F7'] },
         verdict: 'Le coût des études transforme une inégalité d’argent en inégalité de temps, puis de diplôme.',
         notes: 'Faire le lien avec la licence abandonnée (R18) si c’est arrivé dans la partie.',
       };

@@ -695,9 +695,9 @@ export class ExposeGame {
       }
       const out = opt.resolve(c, ctx);
       lines.unshift({ emoji: opt.emoji, text: out.text, tone: out.tone });
-      c.path.push({ year: year.label, kind: 'choice', text: opt.label });
+      c.path.push({ year: year.label, kind: 'choice', text: opt.label, action: opt.id });
       if (out.path) {
-        c.path.push({ year: year.label, ...out.path });
+        c.path.push({ year: year.label, action: opt.id, ...out.path });
         this.highlight(c, out.path.text, out.path.kind === 'close' || out.path.kind === 'event' ? 'bad' : 'good');
       }
       if (forced.some((f) => f.category === 'famille')) lines.push({ emoji: '🏠', text: 'Un jeton est parti pour aider à la maison', tone: 'neutral' });
