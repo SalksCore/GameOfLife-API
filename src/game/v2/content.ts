@@ -25,7 +25,7 @@ const STEPS: StepDef[] = [
     who: 'A',
     plan: 30,
     slide: slide(
-      'Né·e sous la même étoile ?',
+      'Nés sous la même étoile ?',
       'L’école corrige-t-elle les inégalités de départ, ou les transforme-t-elle en inégalités de diplômes ?',
       [],
       '« Levez la main si vous pensez qu’à l’école, tout le monde a les mêmes chances. Retenez votre réponse, on y revient à la fin. »\nSi des élèves ne sont pas connectés : laisser 30 s de plus.',
@@ -306,7 +306,7 @@ export const COMPARED_QUESTIONS = [0, 1, 2];
 export const REFORMS = [
   { id: 'bourses', icon: 'money', label: 'Doubler les bourses', description: '11 000 € (populaire) et 4 000 € (moyenne) au lieu de 5 500 € et 2 000 € : moins de jobs imposés' },
   { id: 'quotas', icon: 'target', label: 'Quotas de boursiers renforcés', description: 'Bonus de dossier des boursiers : +0,25 au lieu de +0,08 en prépa, Sciences Po et BUT' },
-  { id: 'info', icon: 'compass', label: 'L’orientation pour tous', description: 'Toutes les formations visibles pour tous, informé·e ou non' },
+  { id: 'info', icon: 'compass', label: 'L’orientation pour tous', description: 'Toutes les formations visibles pour tous, informés ou non' },
   { id: 'statu_quo', icon: 'scales', label: 'Statu quo', description: 'Rien ne change' },
 ] as const;
 

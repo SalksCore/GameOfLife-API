@@ -243,7 +243,7 @@ const DEBRIEFS: DebriefDef[] = [
         question: 'Qui devient cadre ou profession intermédiaire ?',
         charts: [
           { label: 'Cadre ou profession intermédiaire', unit: '%', game: cadreOuPi, real: { populaire: 26, moyenne: null, superieure: 73 }, max: 100 },
-          { label: 'Cadre ou chef·fe d’entreprise', unit: '%', game: cadre, real: null, max: 100 },
+          { label: 'Cadre ou chef d’entreprise', unit: '%', game: cadre, real: null, max: 100 },
           { label: 'Au chômage à la fin', unit: '%', game: chomage, real: null, max: 100 },
         ],
         interpretation: [

@@ -96,11 +96,11 @@ export const DIPLOMA_LEVEL: Record<Diploma, number> = { aucun: 0, bac: 1, bts: 2
 export type Job = 'chomage' | 'ouvrier' | 'employe' | 'intermediaire' | 'cadre' | 'chef' | 'fonction_a' | 'fonction_b' | 'fonction_c';
 export const JOB_LABEL: Record<Job, string> = {
   chomage: 'Au chômage',
-  ouvrier: 'Ouvrier·e',
-  employe: 'Employé·e',
+  ouvrier: 'Ouvrier',
+  employe: 'Employé',
   intermediaire: 'Profession intermédiaire',
   cadre: 'Cadre',
-  chef: 'Chef·fe d’entreprise',
+  chef: 'Chef d’entreprise',
   fonction_a: 'Fonctionnaire de catégorie A',
   fonction_b: 'Fonctionnaire de catégorie B',
   fonction_c: 'Fonctionnaire de catégorie C',
@@ -256,5 +256,5 @@ export function statusOf(c: Character, yearLabel: string | null): string {
   if (c.job) return JOB_LABEL[c.job];
   if (c.formation && c.formation !== 'vie_active') return FORMATIONS[c.formation].label;
   if (c.formation === 'vie_active') return 'Dans la vie active';
-  return yearLabel ? `Lycéen·ne, ${yearLabel}` : 'Lycéen·ne';
+  return yearLabel ? `Lycée · ${yearLabel}` : 'Au lycée';
 }

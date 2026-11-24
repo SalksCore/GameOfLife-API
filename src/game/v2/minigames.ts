@@ -77,7 +77,7 @@ const MINIGAMES: Record<string, MiniGame> = {
                   ? (grade(c, 0.15), ok('Tes parents t’aident un peu : +0,15'))
                   : meh('Tes parents ne connaissent pas ce programme : personne pour t’aider'),
           },
-          { id: 'seul', label: 'Le finir seul·e tard le soir', default: true, effect: (c) => (grade(c, 0.1), energy(c, -0.4), meh('Fini à minuit : +0,1, −0,4 énergie')) },
+          { id: 'seul', label: 'Le finir en solo tard le soir', default: true, effect: (c) => (grade(c, 0.1), energy(c, -0.4), meh('Fini à minuit : +0,1, −0,4 énergie')) },
           { id: 'ami', label: 'Le faire avec un ami', effect: (c) => (contacts(c, 0.3), meh('À deux, ça va plus vite : +0,3 contact')) },
         ],
       },
@@ -87,8 +87,8 @@ const MINIGAMES: Record<string, MiniGame> = {
         title: 'Élections de délégués',
         text: 'Le prof principal te propose de te présenter.',
         options: [
-          { id: 'oui', label: 'Se présenter', effect: (c) => ((c.engagement += 1), energy(c, -0.3), ok('Élu·e délégué·e : ton dossier s’étoffe')) },
-          { id: 'non', label: 'Laisser la place', default: true, effect: () => meh('Tu restes discret·e cette année') },
+          { id: 'oui', label: 'Se présenter', effect: (c) => ((c.engagement += 1), energy(c, -0.3), ok('Délégation de classe obtenue : ton dossier s’étoffe')) },
+          { id: 'non', label: 'Laisser la place', default: true, effect: () => meh('Tu restes en retrait cette année') },
         ],
       },
       {
@@ -187,7 +187,7 @@ const MINIGAMES: Record<string, MiniGame> = {
         text: 'Il te reste un chapitre entier.',
         options: [
           { id: 'blanche', label: 'Nuit blanche', effect: (c) => (grade(c, 0.3), energy(c, -1), meh('+0,3, mais −1 énergie')) },
-          { id: 'dormir', label: 'Dormir', default: true, effect: (c) => (energy(c, 0.5), ok('Bien reposé·e : +0,5 énergie')) },
+          { id: 'dormir', label: 'Dormir', default: true, effect: (c) => (energy(c, 0.5), ok('Bonne nuit de sommeil : +0,5 énergie')) },
         ],
       },
     ],
@@ -198,7 +198,7 @@ const MINIGAMES: Record<string, MiniGame> = {
     kind: 'budget',
     icon: 'receipt',
     title: 'Le budget du mois',
-    intro: 'Premier mois seul·e. Ta jauge doit rester au-dessus de zéro.',
+    intro: 'Premier mois en solo. Ta jauge doit rester au-dessus de zéro.',
     items: [
       {
         id: 'courses',
@@ -208,7 +208,7 @@ const MINIGAMES: Record<string, MiniGame> = {
         options: [
           { id: 'pates', label: 'Pâtes tout le mois', effect: (c) => (energy(c, -0.4), ko('Pâtes tous les soirs : −0,4 énergie')) },
           { id: 'normal', label: 'Normal', cost: 150, default: true, effect: () => meh('Des courses normales') },
-          { id: 'frais', label: 'Frais et équilibré', cost: 300, effect: (c) => (energy(c, 0.3), ok('Bien nourri·e : +0,3 énergie')) },
+          { id: 'frais', label: 'Frais et équilibré', cost: 300, effect: (c) => (energy(c, 0.3), ok('Bien mangé : +0,3 énergie')) },
         ],
       },
       {
@@ -252,11 +252,11 @@ const MINIGAMES: Record<string, MiniGame> = {
         options: [
           {
             id: 'cabinet',
-            label: 'Assistant·e dans un cabinet d’avocats',
+            label: 'Assistanat dans un cabinet d’avocats',
             hint: '2 500 € · réseau ++',
             show: (c) => c.contacts >= 5,
             chance: () => 0.85,
-            effect: (c) => ((c.budget += 2_500), contacts(c, 1), ok('Pris·e grâce à un ami de tes parents : +2 500 €, +1 contact')),
+            effect: (c) => ((c.budget += 2_500), contacts(c, 1), ok('Embauche grâce à un ami de tes parents : +2 500 €, +1 contact')),
           },
           {
             id: 'banque',
@@ -264,25 +264,25 @@ const MINIGAMES: Record<string, MiniGame> = {
             hint: '2 000 € · sur dossier',
             show: (c) => c.contacts >= 3,
             chance: (c) => clamp(0.3 + (c.grade - 10) * 0.08 + c.contacts * 0.04, 0.1, 0.8),
-            effect: (c) => ((c.budget += 2_000), contacts(c, 0.6), ok('Pris·e : +2 000 €, +0,6 contact')),
+            effect: (c) => ((c.budget += 2_000), contacts(c, 0.6), ok('Embauche : +2 000 €, +0,6 contact')),
           },
           {
             id: 'colo',
-            label: 'Animateur·rice de colonie',
+            label: 'Animation en colonie de vacances',
             hint: '1 200 € · BAFA',
             chance: () => 0.6,
             effect: (c) => ((c.budget += 1_200), contacts(c, 0.3), ok('Un été d’animateur : +1 200 €, +0,3 contact')),
           },
           {
             id: 'entrepot',
-            label: 'Préparateur·rice en entrepôt',
+            label: 'Préparation de commandes en entrepôt',
             hint: '1 800 € · physique',
             chance: () => 0.85,
             effect: (c) => ((c.budget += 1_800), energy(c, -0.5), meh('Un été à porter des cartons : +1 800 €, −0,5 énergie')),
           },
           {
             id: 'caisse',
-            label: 'Caissier·ère au supermarché',
+            label: 'Caisse au supermarché',
             hint: '1 400 €',
             default: true,
             chance: () => 0.9,

@@ -87,7 +87,7 @@ import {
   type YearDef,
 } from './years.js';
 
-const EDIT_LABELS = { boursier: 'boursier', info: 'informé·e des filières sélectives', cordees: 'Cordées de la réussite', homeOwner: 'propriétaire' } as const;
+const EDIT_LABELS = { boursier: 'boursier', info: 'au courant des filières sélectives', cordees: 'Cordées de la réussite', homeOwner: 'propriétaire' } as const;
 
 export interface GameMember {
   id: string;
@@ -790,7 +790,7 @@ export class ExposeGame {
     for (const c of eligible) {
       const res = this.ps.results.get(c.id) ?? [];
       if (!res.some((r) => r.status !== 'refuse')) this.responded.add(c.id);
-      if (res.length && res.every((r) => r.status === 'refuse')) this.highlight(c, 'refusé·e sur tous ses vœux', 'bad');
+      if (res.length && res.every((r) => r.status === 'refuse')) this.highlight(c, 'refus sur tous ses vœux', 'bad');
     }
   }
 
@@ -942,7 +942,7 @@ export class ExposeGame {
           this.accepted.delete(c.id);
         } else {
           const r = res.find((x) => x.formation === input.accept);
-          if (!r || r.status !== 'admis') return 'Tu n’es pas admis·e dans cette formation';
+          if (!r || r.status !== 'admis') return 'Aucune admission dans cette formation';
           this.accepted.set(c.id, r.formation);
         }
         this.responded.add(c.id);
@@ -1015,7 +1015,7 @@ export class ExposeGame {
         c.path.push({ year: this.step.slide.title, kind: 'event', text: won ? 'Grève générale : hausse obtenue' : 'Grève générale : salaire perdu' });
         this.flash(c, won ? 'Grève générale : hausse de salaire obtenue (+1 000 €)' : 'Grève générale : 4 jours sans salaire, rien d’obtenu (−400 €)');
       }
-      this.push(`Grève générale : ${workers.length} salarié·e·s, ${won ? 'hausse de salaire obtenue (+1 000 €)' : 'rien d’obtenu (−400 €)'}`, 'admin');
+      this.push(`Grève générale : ${workers.length} actifs, ${won ? 'hausse de salaire obtenue (+1 000 €)' : 'rien d’obtenu (−400 €)'}`, 'admin');
     } else if (eventId === 'distance') {
       const hit: Record<SocialClass, number> = { populaire: -0.5, moyenne: -0.2, superieure: -0.1 };
       for (const c of this.list) {
@@ -1088,7 +1088,7 @@ export class ExposeGame {
         c.budget += amount;
         this.flash(c, `Prime de fin d’année : +${fmtMoney(amount)}`);
       }
-      this.push(`Prime de fin d’année : ${workers.length} salarié·e·s (cadres +2 500 €, autres +800 €)`, 'admin');
+      this.push(`Prime de fin d’année : ${workers.length} actifs (cadres +2 500 €, autres +800 €)`, 'admin');
     } else if (eventId === 'loto') {
       const c = this.list[Math.floor(this.rnd() * this.list.length)]!;
       c.budget += 10_000;
@@ -1209,9 +1209,9 @@ export class ExposeGame {
         budget: Math.round(c.budget),
         text:
           move > 0
-            ? `Tu es parti·e de la ${CLASS_LABELS[c.origin].toLowerCase()} et tu as monté. C’est possible, mais c’était plus dur pour toi.`
+            ? `Tu partais de la ${CLASS_LABELS[c.origin].toLowerCase()} et tu as monté. C’est possible, mais c’était plus dur pour toi.`
             : move < 0
-              ? `Né·e en ${CLASS_LABELS[c.origin].toLowerCase()}, tu as descendu : un coup dur suffit.`
+              ? `Avec une origine en ${CLASS_LABELS[c.origin].toLowerCase()}, tu as descendu : un coup dur suffit.`
               : f.ascending
                 ? 'Tu es en train de monter : encore quelques années à ce poste pour changer de classe.'
                 : `Tu restes dans la ${CLASS_LABELS[c.origin].toLowerCase()}, comme la plupart des joueurs.`,
@@ -1436,10 +1436,10 @@ export class ExposeGame {
         const revealed = this.revealed.has(step.id) || this.replay;
         const tally = new Map<string, number>();
         for (const c of list) {
-          const label = !c.bac || c.bac === 'aucun' ? 'Recalé·e' : c.bac === 'pro' ? 'Bac pro' : c.mention ? `Mention ${c.mention}` : 'Admis·e';
+          const label = !c.bac || c.bac === 'aucun' ? 'Bac raté' : c.bac === 'pro' ? 'Bac pro' : c.mention ? `Mention ${c.mention}` : 'Bac obtenu';
           tally.set(label, (tally.get(label) ?? 0) + 1);
         }
-        const order = ['Mention Très bien', 'Mention Bien', 'Mention Assez bien', 'Admis·e', 'Bac pro', 'Recalé·e'];
+        const order = ['Mention Très bien', 'Mention Bien', 'Mention Assez bien', 'Bac obtenu', 'Bac pro', 'Bac raté'];
         return {
           kind: 'bac',
           revealed,
@@ -1705,7 +1705,7 @@ export class ExposeGame {
   private feedBac() {
     for (const c of this.list) {
       if (c.origin === 'populaire' && c.mention) this.highlight(c, `bac mention ${c.mention}`, 'good');
-      if (c.bac === 'aucun') this.highlight(c, 'recalé·e au bac', 'bad');
+      if (c.bac === 'aucun') this.highlight(c, 'bac raté', 'bad');
     }
   }
 
@@ -1752,7 +1752,7 @@ function appreciation(c: Character, before: number, year: YearDef): string {
   const d = c.grade - before;
   if (year.stage === 'travail') {
     if (c.job === 'chomage') return 'Une année difficile, à chercher du travail.';
-    if (c.energy < 1.5) return 'Tu as tout donné, mais tu es épuisé·e.';
+    if (c.energy < 1.5) return 'Tu as tout donné, mais tu es à bout de forces.';
     return c.budget >= 20_000 ? 'Ta situation se consolide.' : 'Tu tiens ta place.';
   }
   if (d >= 0.4) return 'Excellents progrès, continue ainsi.';

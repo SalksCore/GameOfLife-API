@@ -60,7 +60,7 @@ export function computeBac(c: Character, roll: (p: number) => boolean): Personal
     return {
       icon: 'file',
       title: rattrapage ? 'Rattrapage raté' : 'Bac raté',
-      text: `Note : ${fmtGrade(note)}/20. ${rattrapage ? 'Trop fatigué·e pour l’oral.' : 'Il fallait 8 pour le rattrapage.'} Direction la vie active.`,
+      text: `Note : ${fmtGrade(note)}/20. ${rattrapage ? 'La fatigue t’a coûté l’oral.' : 'Il fallait 8 pour le rattrapage.'} Direction la vie active.`,
       tone: 'bad',
     };
   }
@@ -259,7 +259,7 @@ export function jobMarket(
     } else if (s === 'entreprise' && c.budget >= 15_000) {
       if (opts.roll(clamp(0.35 + c.contacts * 0.04 + c.engagement * 0.03, 0.2, 0.85))) {
         c.budget += 10_000;
-        assign(c, 'chef', 'Ton entreprise décolle : te voilà chef·fe d’entreprise.');
+        assign(c, 'chef', 'Ton entreprise décolle : te voilà chef d’entreprise.');
       } else {
         c.budget -= 15_000;
         c.path.push({ year: 'Premier emploi', kind: 'event', text: 'Faillite' });
@@ -292,7 +292,7 @@ export function jobMarket(
     if (s === 'haut') {
       if (!opts.roll(0.8)) {
         target = reachable[1] ?? 'ouvrier';
-        note = 'Refusé·e au dernier entretien, tu te rabats sur le poste suivant.';
+        note = 'Dernier entretien raté : tu te rabats sur le poste suivant.';
       }
     } else {
       // « Accepter le premier poste » : un cran en dessous, presque sûr
@@ -307,7 +307,7 @@ export function jobMarket(
     }
     take(target);
     const prev = out.get(c.id);
-    assign(c, target, `${prev ? prev.text + ' ' : ''}${note || `Classé·e ${rest.indexOf(c) + 1}ᵉ sur ${rest.length} : ${JOB_LABEL[target]}.`}`);
+    assign(c, target, `${prev ? prev.text + ' ' : ''}${note || `Classement : ${rest.indexOf(c) + 1}ᵉ sur ${rest.length}, ${JOB_LABEL[target]}.`}`);
   }
   return out;
 }
@@ -359,8 +359,8 @@ export function statLines(chars: Character[], finals: Map<string, FinalOutcome>)
     line('Bac avec mention', '%', (l) => pct(l, (c) => !!c.mention), null),
     line('Formation sélective (prépa, IEP, école)', '%', (l) => pct(l, (c) => c.formation === 'prepa' || c.formation === 'prepa_privee' || c.formation === 'iep' || c.formation === 'ecole'), 'Accès : écart de ×2 à ×4'),
     line('Jetons de job imposés (moyenne)', '', (l) => round1(avg(l, (c) => c.stats.forcedJobs))),
-    line('Diplômé·e d’un bac+5', '%', (l) => pct(l, (c) => DIPLOMA_LEVEL[c.diploma ?? 'aucun'] >= 5), 'Réel : 48 % (cadres) / 10 % (modestes)'),
-    line('Cadre ou chef·fe d’entreprise', '%', (l) => pct(l, (c) => c.job === 'cadre' || c.job === 'chef' || c.job === 'fonction_a'), 'Réel : ×3,1 pour un fils de cadre'),
+    line('Titulaires d’un bac+5', '%', (l) => pct(l, (c) => DIPLOMA_LEVEL[c.diploma ?? 'aucun'] >= 5), 'Réel : 48 % (cadres) / 10 % (modestes)'),
+    line('Cadre ou chef d’entreprise', '%', (l) => pct(l, (c) => c.job === 'cadre' || c.job === 'chef' || c.job === 'fonction_a'), 'Réel : ×3,1 pour un fils de cadre'),
     line('Ont monté d’une classe ou plus', '%', (l) => pct(l, (c) => moveOf(c.origin, finals.get(c.id)?.cls ?? c.origin) > 0), 'Réel : 26 % des fils d’ouvrier'),
     line('Patrimoine moyen', '€', (l) => Math.round(avg(l, (c) => c.budget))),
   ];
