@@ -28,7 +28,7 @@ interface MiniOption {
 
 interface MiniItem {
   id: string;
-  emoji: string;
+  icon: string;
   title: string;
   text: string | ((c: Character) => string);
   options: MiniOption[];
@@ -36,7 +36,7 @@ interface MiniItem {
 
 interface MiniGame {
   kind: MiniGameView['kind'];
-  emoji: string;
+  icon: string;
   title: string;
   intro: string;
   items: MiniItem[];
@@ -57,13 +57,13 @@ const MINIGAMES: Record<string, MiniGame> = {
   // ------------------------------------------------------------- Seconde
   seconde: {
     kind: 'cards',
-    emoji: '🎒',
+    icon: 'backpack',
     title: 'La rentrée',
     intro: 'Trois situations de début d’année. À toi de trancher.',
     items: [
       {
         id: 'dm',
-        emoji: '📐',
+        icon: 'ruler',
         title: 'Un DM de maths très dur pour lundi',
         text: 'Tu bloques sur le dernier exercice.',
         options: [
@@ -83,7 +83,7 @@ const MINIGAMES: Record<string, MiniGame> = {
       },
       {
         id: 'delegue',
-        emoji: '🗳️',
+        icon: 'vote',
         title: 'Élections de délégués',
         text: 'Le prof principal te propose de te présenter.',
         options: [
@@ -93,7 +93,7 @@ const MINIGAMES: Record<string, MiniGame> = {
       },
       {
         id: 'theatre',
-        emoji: '🎭',
+        icon: 'masks',
         title: 'Sortie au théâtre',
         text: 'La classe va voir une pièce en ville.',
         options: [
@@ -107,13 +107,13 @@ const MINIGAMES: Record<string, MiniGame> = {
   // ------------------------------------------------------------- Première
   premiere: {
     kind: 'cards',
-    emoji: '📋',
+    icon: 'clipboard',
     title: 'Le conseil de classe',
     intro: 'Le premier trimestre est passé. Comment réagis-tu ?',
     items: [
       {
         id: 'bulletin',
-        emoji: '📄',
+        icon: 'file',
         title: '« Peut mieux faire »',
         text: 'Ton bulletin est moyen.',
         options: [
@@ -130,7 +130,7 @@ const MINIGAMES: Record<string, MiniGame> = {
       },
       {
         id: 'cours',
-        emoji: '👩‍🏫',
+        icon: 'teacher',
         title: 'Des cours particuliers ?',
         text: 'Un étudiant propose des cours de maths.',
         options: [
@@ -140,7 +140,7 @@ const MINIGAMES: Record<string, MiniGame> = {
       },
       {
         id: 'jpo',
-        emoji: '🏛️',
+        icon: 'institution',
         title: 'Portes ouvertes d’une grande école',
         text: 'À Paris, un samedi. Le train coûte 80 €.',
         options: [
@@ -154,13 +154,13 @@ const MINIGAMES: Record<string, MiniGame> = {
   // ------------------------------------------------------------- Terminale
   terminale: {
     kind: 'cards',
-    emoji: '⏰',
+    icon: 'alarm',
     title: 'La semaine du bac blanc',
     intro: 'Trois imprévus tombent pendant la semaine la plus chargée.',
     items: [
       {
         id: 'frere',
-        emoji: '🤒',
+        icon: 'sick',
         title: 'Ton petit frère est malade',
         text: 'Personne pour le garder mardi.',
         options: [
@@ -171,7 +171,7 @@ const MINIGAMES: Record<string, MiniGame> = {
       },
       {
         id: 'wifi',
-        emoji: '📶',
+        icon: 'signal',
         title: 'Plus d’internet à la maison',
         text: 'La veille de l’épreuve de spécialité.',
         options: [
@@ -182,7 +182,7 @@ const MINIGAMES: Record<string, MiniGame> = {
       },
       {
         id: 'nuit',
-        emoji: '🌙',
+        icon: 'moon',
         title: 'La veille de l’épreuve',
         text: 'Il te reste un chapitre entier.',
         options: [
@@ -196,13 +196,13 @@ const MINIGAMES: Record<string, MiniGame> = {
   // ------------------------------------------------------------- Études 1
   etudes1: {
     kind: 'budget',
-    emoji: '🧾',
+    icon: 'receipt',
     title: 'Le budget du mois',
     intro: 'Premier mois seul·e. Ta jauge doit rester au-dessus de zéro.',
     items: [
       {
         id: 'courses',
-        emoji: '🛒',
+        icon: 'cart',
         title: 'Courses',
         text: 'Pour un mois.',
         options: [
@@ -213,7 +213,7 @@ const MINIGAMES: Record<string, MiniGame> = {
       },
       {
         id: 'transport',
-        emoji: '🚲',
+        icon: 'bike',
         title: 'Transport',
         text: 'Pour aller en cours.',
         options: [
@@ -224,7 +224,7 @@ const MINIGAMES: Record<string, MiniGame> = {
       },
       {
         id: 'loisirs',
-        emoji: '🎉',
+        icon: 'party',
         title: 'Sorties',
         text: 'Soirées, week-ends.',
         options: [
@@ -239,14 +239,14 @@ const MINIGAMES: Record<string, MiniGame> = {
   // ------------------------------------------------------------- Études 2
   etudes2: {
     kind: 'offers',
-    emoji: '📨',
+    icon: 'mail',
     title: 'Le job d’été',
     intro: 'Envoie jusqu’à 3 candidatures. Les meilleures offres ne sont pas affichées pour tout le monde.',
     maxPicks: 3,
     items: [
       {
         id: 'offers',
-        emoji: '📨',
+        icon: 'mail',
         title: 'Les offres',
         text: 'Choisis dans l’ordre de préférence.',
         options: [
@@ -296,13 +296,13 @@ const MINIGAMES: Record<string, MiniGame> = {
   // ------------------------------------------------------------- Travail 1
   travail1: {
     kind: 'cards',
-    emoji: '🤝',
+    icon: 'handshake',
     title: 'L’entretien annuel',
     intro: 'Ton manager te reçoit. Trois questions, trois réponses.',
     items: [
       {
         id: 'demande',
-        emoji: '💬',
+        icon: 'chat',
         title: '« Qu’attends-tu de l’année prochaine ? »',
         text: 'C’est le moment de demander quelque chose.',
         options: [
@@ -320,7 +320,7 @@ const MINIGAMES: Record<string, MiniGame> = {
       },
       {
         id: 'afterwork',
-        emoji: '🥂',
+        icon: 'toast',
         title: 'Afterwork avec la direction',
         text: 'Vendredi soir, dans un bar chic.',
         options: [
@@ -330,7 +330,7 @@ const MINIGAMES: Record<string, MiniGame> = {
       },
       {
         id: 'projet',
-        emoji: '📊',
+        icon: 'chart',
         title: 'Un projet risqué',
         text: 'Ton manager cherche un volontaire.',
         options: [
@@ -348,13 +348,13 @@ const MINIGAMES: Record<string, MiniGame> = {
   // ------------------------------------------------------------- Travail 2
   travail2: {
     kind: 'wheel',
-    emoji: '🎡',
+    icon: 'wheel',
     title: 'Le grand pari',
     intro: 'Tu as un peu d’argent de côté. Que fais-tu de tes économies ?',
     items: [
       {
         id: 'risque',
-        emoji: '🎡',
+        icon: 'wheel',
         title: 'Ton placement',
         text: (c) => (c.budget > 0 ? `Tu as ${fmtMoney(c.budget)}.` : 'Tu n’as rien de côté pour l’instant.'),
         options: [
@@ -403,7 +403,7 @@ export function miniView(c: Character, year: YearDef): MiniGameView | null {
   if (!g) return null;
   const items = g.items.map((it) => ({
     id: it.id,
-    emoji: it.emoji,
+    icon: it.icon,
     title: it.title,
     text: typeof it.text === 'function' ? it.text(c) : it.text,
     options: it.options
@@ -419,7 +419,7 @@ export function miniView(c: Character, year: YearDef): MiniGameView | null {
   return {
     id: year.id,
     kind: g.kind,
-    emoji: g.emoji,
+    icon: g.icon,
     title: g.title,
     intro: g.intro,
     items,
@@ -471,23 +471,23 @@ export function resolveMini(c: Character, year: YearDef, ctx: Ctx): ReportLine[]
       for (const o of picks) {
         if (ctx.roll(o.chance?.(c) ?? 0.5)) {
           const r = o.effect(c, ctx);
-          lines.push({ emoji: '📨', text: `${o.label} : ${r.text}`, tone: r.tone });
+          lines.push({ icon: 'mail', text: `${o.label} : ${r.text}`, tone: r.tone });
           hired = true;
           break;
         }
-        lines.push({ emoji: '✉️', text: `${o.label} : candidature refusée`, tone: 'bad' });
+        lines.push({ icon: 'mail', text: `${o.label} : candidature refusée`, tone: 'bad' });
       }
-      if (!hired) lines.push({ emoji: '🏖️', text: 'Pas de job cet été', tone: 'bad' });
+      if (!hired) lines.push({ icon: 'sun', text: 'Pas de job cet été', tone: 'bad' });
       continue;
     }
     let o = opts.find((x) => x.id === c.mini[it.id] && !lockOf(c, g, x, year));
     if (!o) o = opts.find((x) => x.default && !lockOf(c, g, x, year)) ?? opts.find((x) => !lockOf(c, g, x, year)) ?? opts[0]!;
     const p = pay(o);
     const r = o.effect(c, ctx);
-    lines.push({ emoji: it.emoji, text: `${it.title} · ${r.text}${p ? ` (−${fmtMoney(p)})` : ''}`, tone: r.tone });
+    lines.push({ icon: it.icon, text: `${it.title} · ${r.text}${p ? ` (−${fmtMoney(p)})` : ''}`, tone: r.tone });
   }
-  if (g.kind === 'budget' && c.budget < 0) lines.push({ emoji: '🧾', text: `Fin du mois à découvert : ${fmtMoney(c.budget)}`, tone: 'bad' });
+  if (g.kind === 'budget' && c.budget < 0) lines.push({ icon: 'receipt', text: `Fin du mois à découvert : ${fmtMoney(c.budget)}`, tone: 'bad' });
   return lines;
 }
 
-export const MINI_TITLES: Record<string, { emoji: string; title: string }> = Object.fromEntries(Object.entries(MINIGAMES).map(([id, g]) => [id, { emoji: g.emoji, title: g.title }]));
+export const MINI_TITLES: Record<string, { icon: string; title: string }> = Object.fromEntries(Object.entries(MINIGAMES).map(([id, g]) => [id, { icon: g.icon, title: g.title }]));

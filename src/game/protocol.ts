@@ -135,7 +135,7 @@ export interface ExposeContent {
 
 export interface OptionView {
   id: string;
-  emoji: string;
+  icon: string;
   label: string;
   /** Indication courte : coût, effet, risque… */
   hint: string;
@@ -145,7 +145,7 @@ export interface OptionView {
 
 export interface TokenCategory {
   id: string;
-  emoji: string;
+  icon: string;
   label: string;
   hint: string;
 }
@@ -160,7 +160,7 @@ export interface PathItem {
 }
 
 export interface ReportLine {
-  emoji: string;
+  icon: string;
   text: string;
   tone: Tone;
 }
@@ -211,12 +211,12 @@ export interface MiniGameView {
   id: string;
   /** cards = situations à trancher · budget = budget du mois · offers = candidatures · wheel = pari */
   kind: 'cards' | 'budget' | 'offers' | 'wheel';
-  emoji: string;
+  icon: string;
   title: string;
   intro: string;
   items: {
     id: string;
-    emoji: string;
+    icon: string;
     title: string;
     text: string;
     options: { id: string; label: string; hint: string; cost: number | null; locked: string | null }[];
@@ -240,7 +240,7 @@ export interface YearView {
   forced: { category: string; count: number; reason: string }[];
   categories: TokenCategory[];
   tokens: Record<string, number>;
-  decision: { id: string; emoji: string; title: string; text: string; options: OptionView[]; choice: string | null };
+  decision: { id: string; icon: string; title: string; text: string; options: OptionView[]; choice: string | null };
   mini: MiniGameView | null;
   /** open = on joue · report = bulletin affiché */
   phase: 'open' | 'report';
@@ -252,7 +252,7 @@ export interface YearView {
 export interface FormationView {
   id: string;
   label: string;
-  emoji: string;
+  icon: string;
   hint: string;
   selective: boolean;
   capacity: number;
@@ -275,9 +275,9 @@ export interface ParcoursupView {
   wishes: string[];
   bourse: boolean;
   submitted: boolean;
-  results: { formation: string; label: string; emoji: string; status: WishStatus; rank: number | null }[];
+  results: { formation: string; label: string; icon: string; status: WishStatus; rank: number | null }[];
   response: string | null;
-  final: { formation: string | null; label: string; emoji: string; text: string } | null;
+  final: { formation: string | null; label: string; icon: string; text: string } | null;
 }
 
 export interface JobsView {
@@ -296,7 +296,7 @@ export interface PollView {
 }
 
 export interface VoteView {
-  options: { id: string; emoji: string; label: string; description: string }[];
+  options: { id: string; icon: string; label: string; description: string }[];
   myVote: string | null;
   open: boolean;
   winner: string | null;
@@ -313,7 +313,7 @@ export interface PlayerGameView {
   parcoursup: ParcoursupView | null;
   jobs: JobsView | null;
   /** Résultat personnel (bac, diplôme) */
-  outcome: { emoji: string; title: string; text: string; tone: Tone } | null;
+  outcome: { icon: string; title: string; text: string; tone: Tone } | null;
   final: {
     rank: number;
     total: number;
@@ -388,11 +388,11 @@ export type ScreenStep =
       phase: 'open' | 'report';
       done: number;
       total: number;
-      mini: { emoji: string; title: string } | null;
+      mini: { icon: string; title: string } | null;
       /** Terminale : joueurs informés des filières sélectives */
       informed: number | null;
       /** Choix de l'année : options et nombre de joueurs (après clôture) */
-      choices: { label: string; emoji: string; count: number }[] | null;
+      choices: { label: string; icon: string; count: number }[] | null;
       averages: Record<SocialClass, number>;
     }
   | {
@@ -405,23 +405,23 @@ export type ScreenStep =
     }
   | {
       kind: 'vote';
-      options: { id: string; emoji: string; label: string; description: string }[];
+      options: { id: string; icon: string; label: string; description: string }[];
       counts: number[] | null;
       winner: string | null;
       answered: number;
       total: number;
     }
-  | { kind: 'parcoursup'; done: number; total: number; formations: { id: string; label: string; emoji: string; capacity: number; demand: number }[]; bourses: number; hiddenPrepa: number }
+  | { kind: 'parcoursup'; done: number; total: number; formations: { id: string; label: string; icon: string; capacity: number; demand: number }[]; bourses: number; hiddenPrepa: number }
   | {
       kind: 'parcoursupResults';
       revealed: boolean;
       done: number;
       total: number;
-      formations: { id: string; label: string; emoji: string; capacity: number; admis: number; attente: number; refuse: number }[];
+      formations: { id: string; label: string; icon: string; capacity: number; admis: number; attente: number; refuse: number }[];
     }
   | {
       kind: 'parcoursupFinal';
-      formations: { id: string; label: string; emoji: string; capacity: number; players: string[]; selective: boolean }[];
+      formations: { id: string; label: string; icon: string; capacity: number; players: string[]; selective: boolean }[];
       vieActive: string[];
       selectiveByOrigin: Record<SocialClass, number>;
     }
@@ -473,7 +473,7 @@ export interface ScreenView {
 
 export interface GameEventInfo {
   id: string;
-  emoji: string;
+  icon: string;
   label: string;
   description: string;
 }

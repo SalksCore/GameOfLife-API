@@ -304,29 +304,29 @@ export const COMPARED_QUESTIONS = [0, 1, 2];
 // ================================================================= Réformes (J8)
 
 export const REFORMS = [
-  { id: 'bourses', emoji: '💶', label: 'Doubler les bourses', description: '11 000 € (populaire) et 4 000 € (moyenne) au lieu de 5 500 € et 2 000 € : moins de jobs imposés' },
-  { id: 'quotas', emoji: '🎯', label: 'Quotas de boursiers renforcés', description: 'Bonus de dossier des boursiers : +0,25 au lieu de +0,08 en prépa, Sciences Po et BUT' },
-  { id: 'info', emoji: '🧭', label: 'L’orientation pour tous', description: 'Toutes les formations visibles pour tous, informé·e ou non' },
-  { id: 'statu_quo', emoji: '⚖️', label: 'Statu quo', description: 'Rien ne change' },
+  { id: 'bourses', icon: 'money', label: 'Doubler les bourses', description: '11 000 € (populaire) et 4 000 € (moyenne) au lieu de 5 500 € et 2 000 € : moins de jobs imposés' },
+  { id: 'quotas', icon: 'target', label: 'Quotas de boursiers renforcés', description: 'Bonus de dossier des boursiers : +0,25 au lieu de +0,08 en prépa, Sciences Po et BUT' },
+  { id: 'info', icon: 'compass', label: 'L’orientation pour tous', description: 'Toutes les formations visibles pour tous, informé·e ou non' },
+  { id: 'statu_quo', icon: 'scales', label: 'Statu quo', description: 'Rien ne change' },
 ] as const;
 
 // ================================================================= Événements de régie (A3)
 
 export const COLLECTIVE_EVENTS: GameEventInfo[] = [
-  { id: 'crise', emoji: '📉', label: 'Crise économique', description: 'Licenciements plus probables cette année' },
-  { id: 'heritage', emoji: '🏰', label: 'Héritage', description: 'Un joueur au hasard reçoit 20 000 €' },
-  { id: 'merite', emoji: '🏅', label: 'Bourse au mérite', description: 'Le meilleur joueur populaire reçoit 3 000 €' },
-  { id: 'greve', emoji: '✊', label: 'Grève générale', description: 'Salariés (hors cadres) : hausse obtenue ou jours de salaire perdus' },
-  { id: 'distance', emoji: '😷', label: 'Cours à distance', description: 'Épidémie : sans aide ni chambre à soi, la moyenne baisse plus (populaire −0,5, moyenne −0,2, supérieure −0,1)' },
-  { id: 'prof', emoji: '🏫', label: 'Prof non remplacé', description: 'Lycées de quartier : −0,4 de moyenne (centre-ville −0,1)' },
-  { id: 'soutien', emoji: '📚', label: 'Soutien scolaire gratuit', description: 'Dispositif public : classe populaire +0,3 de moyenne, +0,3 énergie' },
-  { id: 'bourses', emoji: '🎓', label: 'Bourses revalorisées', description: 'Chaque boursier reçoit 1 500 €' },
-  { id: 'reseau', emoji: '🥂', label: 'Soirée réseau', description: 'Le carnet d’adresses des parents : supérieure +2 contacts, moyenne +1, populaire 0' },
-  { id: 'loyers', emoji: '🏠', label: 'Hausse des loyers', description: 'Locataires hors du foyer familial : −800 € (propriétaires épargnés)' },
-  { id: 'inflation', emoji: '🛒', label: 'Inflation', description: 'Les prix montent : −8 % de l’épargne, au moins −300 € pour chacun' },
-  { id: 'accident', emoji: '🚑', label: 'Accident de la vie', description: 'Un joueur au hasard : −3 000 € et −1 énergie (sauf si la famille a 10 000 € de côté)' },
-  { id: 'prime', emoji: '🎁', label: 'Prime de fin d’année', description: 'Salariés : +800 €, cadres et chefs d’entreprise : +2 500 €' },
-  { id: 'loto', emoji: '🍀', label: 'Coup de chance', description: 'Un joueur au hasard gagne 10 000 € (le hasard ne dépend pas de l’origine)' },
+  { id: 'crise', icon: 'trend-down', label: 'Crise économique', description: 'Licenciements plus probables cette année' },
+  { id: 'heritage', icon: 'castle', label: 'Héritage', description: 'Un joueur au hasard reçoit 20 000 €' },
+  { id: 'merite', icon: 'medal', label: 'Bourse au mérite', description: 'Le meilleur joueur populaire reçoit 3 000 €' },
+  { id: 'greve', icon: 'fist', label: 'Grève générale', description: 'Salariés (hors cadres) : hausse obtenue ou jours de salaire perdus' },
+  { id: 'distance', icon: 'sick', label: 'Cours à distance', description: 'Épidémie : sans aide ni chambre à soi, la moyenne baisse plus (populaire −0,5, moyenne −0,2, supérieure −0,1)' },
+  { id: 'prof', icon: 'school', label: 'Prof non remplacé', description: 'Lycées de quartier : −0,4 de moyenne (centre-ville −0,1)' },
+  { id: 'soutien', icon: 'books', label: 'Soutien scolaire gratuit', description: 'Dispositif public : classe populaire +0,3 de moyenne, +0,3 énergie' },
+  { id: 'bourses', icon: 'graduation', label: 'Bourses revalorisées', description: 'Chaque boursier reçoit 1 500 €' },
+  { id: 'reseau', icon: 'toast', label: 'Soirée réseau', description: 'Le carnet d’adresses des parents : supérieure +2 contacts, moyenne +1, populaire 0' },
+  { id: 'loyers', icon: 'home', label: 'Hausse des loyers', description: 'Locataires hors du foyer familial : −800 € (propriétaires épargnés)' },
+  { id: 'inflation', icon: 'cart', label: 'Inflation', description: 'Les prix montent : −8 % de l’épargne, au moins −300 € pour chacun' },
+  { id: 'accident', icon: 'ambulance', label: 'Accident de la vie', description: 'Un joueur au hasard : −3 000 € et −1 énergie (sauf si la famille a 10 000 € de côté)' },
+  { id: 'prime', icon: 'gift', label: 'Prime de fin d’année', description: 'Salariés : +800 €, cadres et chefs d’entreprise : +2 500 €' },
+  { id: 'loto', icon: 'luck', label: 'Coup de chance', description: 'Un joueur au hasard gagne 10 000 € (le hasard ne dépend pas de l’origine)' },
 ];
 
 // ================================================================= Cartes « Le saviez-vous » (E5)

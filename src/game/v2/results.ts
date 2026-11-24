@@ -23,7 +23,7 @@ const ORDER: Record<SocialClass, number> = { populaire: 0, moyenne: 1, superieur
 const BY_ORDER: SocialClass[] = ['populaire', 'moyenne', 'superieure'];
 
 export interface PersonalOutcome {
-  emoji: string;
+  icon: string;
   title: string;
   text: string;
   tone: Tone;
@@ -42,11 +42,11 @@ export function computeBac(c: Character, roll: (p: number) => boolean): Personal
       c.bac = 'pro';
       c.mention = null;
       c.path.push({ year: 'Bac', kind: 'title', text: 'Bac professionnel' });
-      return { emoji: '🎓', title: 'Bac pro obtenu', text: `Note : ${fmtGrade(note)}/20. BTS, BUT et alternance te sont ouverts.`, tone: 'good' };
+      return { icon: 'graduation', title: 'Bac pro obtenu', text: `Note : ${fmtGrade(note)}/20. BTS, BUT et alternance te sont ouverts.`, tone: 'good' };
     }
     c.bac = 'aucun';
     c.path.push({ year: 'Bac', kind: 'close', text: 'Bac pro manqué' });
-    return { emoji: '📄', title: 'Bac pro manqué', text: `Note : ${fmtGrade(note)}/20 (il fallait 9). Direction la vie active.`, tone: 'bad' };
+    return { icon: 'file', title: 'Bac pro manqué', text: `Note : ${fmtGrade(note)}/20 (il fallait 9). Direction la vie active.`, tone: 'bad' };
   }
   let passed = note >= 10;
   let rattrapage = false;
@@ -58,7 +58,7 @@ export function computeBac(c: Character, roll: (p: number) => boolean): Personal
     c.bac = 'aucun';
     c.path.push({ year: 'Bac', kind: 'close', text: rattrapage ? 'Bac raté au rattrapage' : 'Bac raté' });
     return {
-      emoji: '📄',
+      icon: 'file',
       title: rattrapage ? 'Rattrapage raté' : 'Bac raté',
       text: `Note : ${fmtGrade(note)}/20. ${rattrapage ? 'Trop fatigué·e pour l’oral.' : 'Il fallait 8 pour le rattrapage.'} Direction la vie active.`,
       tone: 'bad',
@@ -68,7 +68,7 @@ export function computeBac(c: Character, roll: (p: number) => boolean): Personal
   c.mention = rattrapage ? null : note >= 16 ? 'Très bien' : note >= 14 ? 'Bien' : note >= 12 ? 'Assez bien' : null;
   c.path.push({ year: 'Bac', kind: 'title', text: c.mention ? `Bac mention ${c.mention}` : rattrapage ? 'Bac au rattrapage' : 'Bac' });
   return {
-    emoji: c.mention ? '🏅' : '🎓',
+    icon: c.mention ? 'medal' : 'graduation',
     title: c.mention ? `Bac mention ${c.mention}` : rattrapage ? 'Bac obtenu au rattrapage !' : 'Bac obtenu',
     text: `Note : ${fmtGrade(note)}/20 (moyenne de Première et Terminale). Parcoursup t’attend.`,
     tone: 'good',
@@ -129,7 +129,7 @@ export function computeDiploma(c: Character): PersonalOutcome {
   if (DIPLOMA_LEVEL[d] >= 2) c.path.push({ year: 'Diplômes', kind: 'title', text: DIPLOMA_LABEL[d] });
   const level = DIPLOMA_LEVEL[d];
   return {
-    emoji: level >= 5 ? '🎓' : level >= 2 ? '📜' : '📄',
+    icon: level >= 5 ? 'graduation' : level >= 2 ? 'scroll' : 'file',
     title: DIPLOMA_LABEL[d],
     text,
     tone: level >= 3 ? 'good' : level >= 2 ? 'neutral' : 'bad',
@@ -192,12 +192,12 @@ export function employability(c: Character, addressEffect: boolean): number {
 
 export type Strategy = 'haut' | 'premier' | 'concours' | 'promesse' | 'entreprise';
 
-export const STRATEGIES: { id: Strategy; emoji: string; label: string; hint: string }[] = [
-  { id: 'haut', emoji: '🎯', label: 'Viser le plus haut', hint: 'Le meilleur poste encore libre auquel tu as accès · un refus est possible' },
-  { id: 'premier', emoji: '🤝', label: 'Accepter le premier poste', hint: 'Un cran en dessous, presque sûr' },
-  { id: 'concours', emoji: '📝', label: 'Passer un concours', hint: 'Fonction publique : seule ta moyenne compte, places à part' },
-  { id: 'promesse', emoji: '🔑', label: 'Faire jouer ta promesse d’embauche', hint: 'Poste garanti' },
-  { id: 'entreprise', emoji: '🚀', label: 'Créer ton entreprise', hint: '15 000 € d’apport (le don familial compte)' },
+export const STRATEGIES: { id: Strategy; icon: string; label: string; hint: string }[] = [
+  { id: 'haut', icon: 'target', label: 'Viser le plus haut', hint: 'Le meilleur poste encore libre auquel tu as accès · un refus est possible' },
+  { id: 'premier', icon: 'handshake', label: 'Accepter le premier poste', hint: 'Un cran en dessous, presque sûr' },
+  { id: 'concours', icon: 'note', label: 'Passer un concours', hint: 'Fonction publique : seule ta moyenne compte, places à part' },
+  { id: 'promesse', icon: 'key', label: 'Faire jouer ta promesse d’embauche', hint: 'Poste garanti' },
+  { id: 'entreprise', icon: 'rocket', label: 'Créer ton entreprise', hint: '15 000 € d’apport (le don familial compte)' },
 ];
 
 export function strategyLock(c: Character, s: Strategy): string | null {
@@ -243,7 +243,7 @@ export function jobMarket(
     c.job = job;
     c.jobYears = 0;
     c.path.push({ year: 'Premier emploi', kind: job === 'chomage' ? 'close' : 'title', text: JOB_LABEL[job] });
-    out.set(c.id, { emoji: job === 'chomage' ? '📉' : job === 'chef' ? '🚀' : job.startsWith('fonction') ? '🏛️' : '💼', title: JOB_LABEL[job], text, tone });
+    out.set(c.id, { icon: job === 'chomage' ? 'trend-down' : job === 'chef' ? 'rocket' : job.startsWith('fonction') ? 'institution' : 'briefcase', title: JOB_LABEL[job], text, tone });
   };
   const emp = new Map(chars.map((c) => [c.id, employability(c, opts.addressEffect)]));
   const pending: Character[] = [];
@@ -264,7 +264,7 @@ export function jobMarket(
         c.budget -= 15_000;
         c.path.push({ year: 'Premier emploi', kind: 'event', text: 'Faillite' });
         pending.push(c);
-        out.set(c.id, { emoji: '💥', title: 'Faillite', text: 'Ton entreprise ferme : −15 000 €. Tu cherches un poste.', tone: 'bad' });
+        out.set(c.id, { icon: 'burst', title: 'Faillite', text: 'Ton entreprise ferme : −15 000 €. Tu cherches un poste.', tone: 'bad' });
       }
     } else pending.push(c);
   }
@@ -276,7 +276,7 @@ export function jobMarket(
     const j = (['fonction_a', 'fonction_b', 'fonction_c'] as Job[]).find((x) => !jobAccess(c, x) && free(x));
     if (j && take(j)) assign(c, j, `Concours réussi grâce à ta moyenne (${fmtGrade(c.grade)}) : ${JOB_LABEL[j]}.`);
     else {
-      out.set(c.id, { emoji: '📝', title: 'Concours manqué', text: 'Plus de place au concours : tu cherches dans le privé.', tone: 'bad' });
+      out.set(c.id, { icon: 'note', title: 'Concours manqué', text: 'Plus de place au concours : tu cherches dans le privé.', tone: 'bad' });
       rest.push(c);
     }
   }

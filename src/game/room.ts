@@ -446,7 +446,7 @@ export class Room {
       this.roles.set(a, role);
       this.roles.set(b, role);
     }
-    this.system(`🤝 ${this.members.get(a)?.displayName} et ${this.members.get(b)?.displayName} jouent en binôme`);
+    this.system(`${this.members.get(a)?.displayName} et ${this.members.get(b)?.displayName} jouent en binôme`);
     this.touch();
     return null;
   }
@@ -507,7 +507,7 @@ export class Room {
       this.timings.rnd,
       this.timings.game,
     );
-    this.system('🚀 L’exposé commence !');
+    this.system('L’exposé commence !');
     this.game.start();
     this.touch();
     return null;
@@ -539,7 +539,7 @@ export class Room {
   private markEnded(): void {
     if (this.phase === 'ended') return;
     this.phase = 'ended';
-    this.system('🏁 La partie est terminée. Merci d’avoir joué !');
+    this.system('La partie est terminée. Merci d’avoir joué !');
     this.out.gameEnded({
       code: this.code,
       name: this.info.name,

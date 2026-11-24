@@ -49,7 +49,7 @@ export type FormationId = 'prepa' | 'prepa_privee' | 'iep' | 'ecole' | 'licence'
 export interface Formation {
   id: FormationId;
   label: string;
-  emoji: string;
+  icon: string;
   /** Part des personnages de la partie (places) */
   share: number;
   selective: boolean;
@@ -66,14 +66,14 @@ export interface Formation {
 }
 
 export const FORMATIONS: Record<FormationId, Formation> = {
-  prepa: { id: 'prepa', label: 'Classe prépa publique (puis grande école)', emoji: '🏛️', share: 0.09, selective: true, needsInfo: true, quota: true, needsGeneralBac: true, cost: 4_000, fit: { sciences: 1, ses: 0.9, arts: 0.3, pro: 0 }, hint: 'Très sélectif · gratuit, logement à payer' },
-  prepa_privee: { id: 'prepa_privee', label: 'Classe prépa privée (puis grande école)', emoji: '🏰', share: 0.05, selective: true, needsInfo: true, quota: false, needsGeneralBac: true, cost: 12_000, fit: { sciences: 1, ses: 0.9, arts: 0.3, pro: 0 }, hint: '≈ 8 000 € de frais par an + logement · pas de quota' },
-  iep: { id: 'iep', label: 'Sciences Po / IEP', emoji: '🎓', share: 0.07, selective: true, needsInfo: true, quota: true, needsGeneralBac: true, cost: 6_500, fit: { sciences: 0.7, ses: 1, arts: 0.6, pro: 0 }, hint: 'Très sélectif · frais selon les revenus' },
-  ecole: { id: 'ecole', label: 'École de commerce privée post-bac', emoji: '💼', share: 0.12, selective: true, needsInfo: false, quota: false, needsGeneralBac: true, cost: 11_000, fit: { sciences: 0.8, ses: 1, arts: 0.7, pro: 0.3 }, hint: '≈ 9 000 € de frais par an + logement' },
-  licence: { id: 'licence', label: 'Licence à l’université', emoji: '📚', share: 0.5, selective: false, needsInfo: false, quota: false, needsGeneralBac: true, cost: 4_000, fit: { sciences: 1, ses: 1, arts: 1, pro: 0.4 }, hint: 'Peu sélective · beaucoup d’abandons en 1ʳᵉ année' },
-  but: { id: 'but', label: 'BUT (IUT)', emoji: '🛠️', share: 0.16, selective: true, needsInfo: false, quota: true, needsGeneralBac: false, cost: 3_000, fit: { sciences: 1, ses: 1, arts: 0.7, pro: 0.6 }, hint: 'Sélectif · encadré' },
-  bts: { id: 'bts', label: 'BTS', emoji: '🧰', share: 0.2, selective: true, needsInfo: false, quota: false, needsGeneralBac: false, cost: 2_000, fit: { sciences: 0.7, ses: 0.7, arts: 0.7, pro: 1 }, hint: 'Places réservées aux bacs pros' },
-  alternance: { id: 'alternance', label: 'BTS en alternance (payé)', emoji: '🔁', share: 0.12, selective: true, needsInfo: false, quota: false, needsGeneralBac: false, cost: -7_000, fit: { sciences: 0.8, ses: 0.8, arts: 0.8, pro: 1 }, hint: 'Salarié · il faut trouver une entreprise' },
+  prepa: { id: 'prepa', label: 'Classe prépa publique (puis grande école)', icon: 'institution', share: 0.09, selective: true, needsInfo: true, quota: true, needsGeneralBac: true, cost: 4_000, fit: { sciences: 1, ses: 0.9, arts: 0.3, pro: 0 }, hint: 'Très sélectif · gratuit, logement à payer' },
+  prepa_privee: { id: 'prepa_privee', label: 'Classe prépa privée (puis grande école)', icon: 'castle', share: 0.05, selective: true, needsInfo: true, quota: false, needsGeneralBac: true, cost: 12_000, fit: { sciences: 1, ses: 0.9, arts: 0.3, pro: 0 }, hint: '≈ 8 000 € de frais par an + logement · pas de quota' },
+  iep: { id: 'iep', label: 'Sciences Po / IEP', icon: 'graduation', share: 0.07, selective: true, needsInfo: true, quota: true, needsGeneralBac: true, cost: 6_500, fit: { sciences: 0.7, ses: 1, arts: 0.6, pro: 0 }, hint: 'Très sélectif · frais selon les revenus' },
+  ecole: { id: 'ecole', label: 'École de commerce privée post-bac', icon: 'briefcase', share: 0.12, selective: true, needsInfo: false, quota: false, needsGeneralBac: true, cost: 11_000, fit: { sciences: 0.8, ses: 1, arts: 0.7, pro: 0.3 }, hint: '≈ 9 000 € de frais par an + logement' },
+  licence: { id: 'licence', label: 'Licence à l’université', icon: 'books', share: 0.5, selective: false, needsInfo: false, quota: false, needsGeneralBac: true, cost: 4_000, fit: { sciences: 1, ses: 1, arts: 1, pro: 0.4 }, hint: 'Peu sélective · beaucoup d’abandons en 1ʳᵉ année' },
+  but: { id: 'but', label: 'BUT (IUT)', icon: 'wrench', share: 0.16, selective: true, needsInfo: false, quota: true, needsGeneralBac: false, cost: 3_000, fit: { sciences: 1, ses: 1, arts: 0.7, pro: 0.6 }, hint: 'Sélectif · encadré' },
+  bts: { id: 'bts', label: 'BTS', icon: 'toolbox', share: 0.2, selective: true, needsInfo: false, quota: false, needsGeneralBac: false, cost: 2_000, fit: { sciences: 0.7, ses: 0.7, arts: 0.7, pro: 1 }, hint: 'Places réservées aux bacs pros' },
+  alternance: { id: 'alternance', label: 'BTS en alternance (payé)', icon: 'repeat', share: 0.12, selective: true, needsInfo: false, quota: false, needsGeneralBac: false, cost: -7_000, fit: { sciences: 0.8, ses: 0.8, arts: 0.8, pro: 1 }, hint: 'Salarié · il faut trouver une entreprise' },
 };
 export const FORMATION_IDS = Object.keys(FORMATIONS) as FormationId[];
 
@@ -180,7 +180,7 @@ export interface Character {
   /** Mini-jeu de l'année : élément -> option */
   mini: Record<string, string>;
   done: boolean;
-  report: { title: string; grade: number; before: number; appreciation: string; lines: { emoji: string; text: string; tone: Tone }[] } | null;
+  report: { title: string; grade: number; before: number; appreciation: string; lines: { icon: string; text: string; tone: Tone }[] } | null;
   outcome: { title: string; text: string; tone: Tone } | null;
   flash: { text: string; until: number } | null;
 }

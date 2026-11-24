@@ -79,7 +79,7 @@ export const players = pgTable('players', {
   /** Option anonyme : prénom = mot tiré au hasard, nom = nombre (ex. « Renard 42 »), aucun nom réel enregistré */
   anonymous: boolean('anonymous').notNull().default(false),
   /** Personnalisation choisie par le joueur (liste fermée côté serveur) */
-  avatar: text('avatar').notNull().default('🙂'),
+  avatar: text('avatar').notNull().default('p:00000000'),
   color: text('color').notNull().default('violet'),
   gamesPlayed: integer('games_played').notNull().default(0),
   bannedAt: timestamp('banned_at', { withTimezone: true }),

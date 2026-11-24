@@ -251,7 +251,7 @@ export class ExposeGame {
     g.paused = true;
     g.endsAt = null;
     g.remaining = typeof data.remaining === 'number' ? data.remaining : null;
-    g.push('♻️ Partie reprise après un redémarrage du serveur : relancez avec Reprendre (P)', 'admin');
+    g.push('Partie reprise après un redémarrage du serveur : relancez avec Reprendre (P)', 'admin');
     return g;
   }
 
@@ -624,7 +624,7 @@ export class ExposeGame {
       const c = newCharacter(id, this.pending.get(id)!, assigned.get(id)!, this.rnd);
       this.chars.set(id, c);
     }
-    this.push('🎲 Les familles sont tirées au sort', 'admin');
+    this.push('Les familles sont tirées au sort', 'admin');
   }
 
   // ================================================================= Années
@@ -686,21 +686,21 @@ export class ExposeGame {
         opt = opts.find((o) => o.id === fb && !lockReason(c, o, ctx)) ?? opts.find((o) => !lockReason(c, o, ctx)) ?? opts[0]!;
       }
       counts.set(opt.id, (counts.get(opt.id) ?? 0) + 1);
-      const lines: { emoji: string; text: string; tone: Tone }[] = [];
+      const lines: { icon: string; text: string; tone: Tone }[] = [];
       if (opt.cost) {
         const pay = year.stage === 'travail' ? opt.cost : familyShare(c, opt.cost);
         c.budget -= pay;
-        if (opt.cost > pay) lines.push({ emoji: '👪', text: pay ? `Tes parents paient ${fmtMoney(opt.cost - pay)}, toi ${fmtMoney(pay)}` : `Tes parents paient ${fmtMoney(opt.cost)}`, tone: 'neutral' });
-        else lines.push({ emoji: '💸', text: `Tu paies ${fmtMoney(pay)}`, tone: 'neutral' });
+        if (opt.cost > pay) lines.push({ icon: 'family', text: pay ? `Tes parents paient ${fmtMoney(opt.cost - pay)}, toi ${fmtMoney(pay)}` : `Tes parents paient ${fmtMoney(opt.cost)}`, tone: 'neutral' });
+        else lines.push({ icon: 'wallet', text: `Tu paies ${fmtMoney(pay)}`, tone: 'neutral' });
       }
       const out = opt.resolve(c, ctx);
-      lines.unshift({ emoji: opt.emoji, text: out.text, tone: out.tone });
+      lines.unshift({ icon: opt.icon, text: out.text, tone: out.tone });
       c.path.push({ year: year.label, kind: 'choice', text: opt.label, action: opt.id });
       if (out.path) {
         c.path.push({ year: year.label, action: opt.id, ...out.path });
         this.highlight(c, out.path.text, out.path.kind === 'close' || out.path.kind === 'event' ? 'bad' : 'good');
       }
-      if (forced.some((f) => f.category === 'famille')) lines.push({ emoji: '🏠', text: 'Un jeton est parti pour aider à la maison', tone: 'neutral' });
+      if (forced.some((f) => f.category === 'famille')) lines.push({ icon: 'home', text: 'Un jeton est parti pour aider à la maison', tone: 'neutral' });
 
       lines.push(...applyTokens(c, year, forced, ctx));
       // Mini-jeu de l'année
@@ -713,10 +713,10 @@ export class ExposeGame {
         const bourse = bourseAmount(c, this.reform);
         const toPay = share - bourse;
         c.budget -= toPay;
-        if (cost < 0) lines.push({ emoji: '🔁', text: `Salaire d’alternant : +${fmtMoney(-cost)}`, tone: 'good' });
+        if (cost < 0) lines.push({ icon: 'repeat', text: `Salaire d’alternant : +${fmtMoney(-cost)}`, tone: 'good' });
         else
           lines.push({
-            emoji: '🎒',
+            icon: 'backpack',
             text: `Études et logement : ${fmtMoney(cost)}${cost > share ? `, dont ${fmtMoney(cost - share)} payés par tes parents` : ''}${bourse ? `, bourse ${fmtMoney(bourse)}` : ''} → ${toPay > 0 ? `−${fmtMoney(toPay)} pour toi` : 'rien à payer'}`,
             tone: toPay > 0 ? 'bad' : 'good',
           });
@@ -726,7 +726,7 @@ export class ExposeGame {
       const shock = this.crisis && year.stage === 'travail' ? this.crisisShock(c) : rollShock(c, year, ctx);
       if (shock) {
         lines.push(shock);
-        if (shock.tone !== 'neutral') this.pop(c, `${shock.emoji} ${shock.text.split(':')[0]}`, shock.tone);
+        if (shock.tone !== 'neutral') this.pop(c, `${shock.icon} ${shock.text.split(':')[0]}`, shock.tone);
         if (shock.text.startsWith('Licenciement')) {
           c.path.push({ year: year.label, kind: 'event', text: 'Licenciement' });
           this.highlight(c, 'licenciement économique', 'bad');
@@ -734,7 +734,7 @@ export class ExposeGame {
       }
       // Consolidation (J12) : un poste obtenu cette année ne compte pas encore comme « tenu »
       if (year.stage === 'travail' && c.job !== jobAtStart) c.jobYears = 0;
-      if (c.budget < 0 && year.stage !== 'travail') lines.push({ emoji: '🧾', text: `Tu es à découvert : ${fmtMoney(c.budget)}`, tone: 'bad' });
+      if (c.budget < 0 && year.stage !== 'travail') lines.push({ icon: 'receipt', text: `Tu es à découvert : ${fmtMoney(c.budget)}`, tone: 'bad' });
       if (year.stage !== 'travail' || c.grades.length < 7) c.grades.push(c.grade);
       c.report = { title: year.label, grade: c.grade, before, appreciation: appreciation(c, before, year), lines };
       c.done = true;
@@ -745,11 +745,11 @@ export class ExposeGame {
 
   private crisisShock(c: Character) {
     if (c.job && c.job !== 'chef' && c.job !== 'chomage' && !c.job.startsWith('fonction') && this.roll(c.origin === 'populaire' ? 0.5 : 0.35)) {
-      if (c.contacts >= 6) return { emoji: '📉', text: 'Crise : plan social… mais ton réseau te retrouve un poste', tone: 'neutral' as Tone };
+      if (c.contacts >= 6) return { icon: 'trend-down', text: 'Crise : plan social… mais ton réseau te retrouve un poste', tone: 'neutral' as Tone };
       const before = c.job;
       c.job = 'chomage';
       c.jobYears = 0;
-      return { emoji: '📉', text: `Licenciement économique (crise) : tu perds ton poste (${JOB_LABEL[before]})`, tone: 'bad' as Tone };
+      return { icon: 'trend-down', text: `Licenciement économique (crise) : tu perds ton poste (${JOB_LABEL[before]})`, tone: 'bad' as Tone };
     }
     return null;
   }
@@ -763,7 +763,7 @@ export class ExposeGame {
     const winners = REFORMS.filter((_, i) => counts[i] === max);
     this.reform = max === 0 || winners.length > 1 ? 'statu_quo' : (winners[0]!.id as ReformId);
     const r = REFORMS.find((x) => x.id === this.reform)!;
-    this.push(`🗳️ Réforme adoptée : ${r.label}`, 'admin');
+    this.push(`Réforme adoptée : ${r.label}`, 'admin');
   }
 
   // ================================================================= Parcoursup
@@ -974,10 +974,10 @@ export class ExposeGame {
     if (!list.length) return 'Personne à qui donner';
     for (const c of list) {
       c.budget += amount;
-      this.flash(c, `${amount > 0 ? '💶 Tu reçois' : '💸 On te retire'} ${fmtMoney(Math.abs(amount))}`);
+      this.flash(c, `${amount > 0 ? 'Tu reçois' : 'On te retire'} ${fmtMoney(Math.abs(amount))}`);
     }
     const who = target === 'all' ? 'tout le monde' : target.startsWith('class:') ? CLASS_LABELS[target.slice(6) as SocialClass].toLowerCase() : this.nameOf(list[0]!);
-    this.push(`${amount > 0 ? '💶' : '💸'} ${who} : ${amount > 0 ? '+' : '−'}${fmtMoney(Math.abs(amount))}`, 'admin');
+    this.push(`${who} : ${amount > 0 ? '+' : '−'}${fmtMoney(Math.abs(amount))}`, 'admin');
     this.changed();
     return null;
   }
@@ -988,23 +988,23 @@ export class ExposeGame {
       const s = this.step;
       if (s.kind !== 'year' || yearById(s.ref!)!.stage !== 'travail' || this.closed.has(s.id)) return 'La crise se déclenche pendant une période de travail (année ouverte)';
       this.crisis = true;
-      for (const c of this.list) this.flash(c, '📉 Crise économique : les entreprises licencient cette année');
-      this.push('📉 Crise économique : licenciements plus probables', 'admin');
+      for (const c of this.list) this.flash(c, 'Crise économique : les entreprises licencient cette année');
+      this.push('Crise économique : licenciements plus probables', 'admin');
     } else if (eventId === 'heritage') {
       const c = this.list[Math.floor(this.rnd() * this.list.length)]!;
       c.budget += 20_000;
       c.path.push({ year: this.step.slide.title, kind: 'event', text: 'Héritage de 20 000 €' });
-      this.flash(c, '🏰 Héritage : tu reçois 20 000 €');
-      this.pop(c, '🏰 +20 000 €', 'good');
-      this.push(`🏰 Héritage : ${this.nameOf(c)} reçoit 20 000 € (${CLASS_LABELS[c.origin].toLowerCase()})`, 'admin');
+      this.flash(c, 'Héritage : tu reçois 20 000 €');
+      this.pop(c, '+20 000 €', 'good');
+      this.push(`Héritage : ${this.nameOf(c)} reçoit 20 000 € (${CLASS_LABELS[c.origin].toLowerCase()})`, 'admin');
     } else if (eventId === 'merite') {
       const best = this.list.filter((c) => c.origin === 'populaire').sort((a, b) => b.grade - a.grade)[0];
       if (!best) return 'Aucun joueur de classe populaire';
       best.budget += 3_000;
       best.path.push({ year: this.step.slide.title, kind: 'event', text: 'Bourse au mérite' });
-      this.flash(best, '🏅 Bourse au mérite : tu reçois 3 000 €');
-      this.pop(best, '🏅 +3 000 €', 'good');
-      this.push(`🏅 Bourse au mérite : ${this.nameOf(best)} (${fmtGrade(best.grade)}/20) reçoit 3 000 €`, 'admin');
+      this.flash(best, 'Bourse au mérite : tu reçois 3 000 €');
+      this.pop(best, '+3 000 €', 'good');
+      this.push(`Bourse au mérite : ${this.nameOf(best)} (${fmtGrade(best.grade)}/20) reçoit 3 000 €`, 'admin');
     } else if (eventId === 'greve') {
       // Grève générale pour les salaires : salariés et fonctionnaires, hors cadres et chefs d'entreprise
       const workers = this.list.filter((c) => c.job && !['cadre', 'chef', 'chomage', 'fonction_a'].includes(c.job));
@@ -1013,89 +1013,89 @@ export class ExposeGame {
       for (const c of workers) {
         c.budget += won ? 1_000 : -400;
         c.path.push({ year: this.step.slide.title, kind: 'event', text: won ? 'Grève générale : hausse obtenue' : 'Grève générale : salaire perdu' });
-        this.flash(c, won ? '✊ Grève générale : hausse de salaire obtenue (+1 000 €)' : '✊ Grève générale : 4 jours sans salaire, rien d’obtenu (−400 €)');
+        this.flash(c, won ? 'Grève générale : hausse de salaire obtenue (+1 000 €)' : 'Grève générale : 4 jours sans salaire, rien d’obtenu (−400 €)');
       }
-      this.push(`✊ Grève générale : ${workers.length} salarié·e·s, ${won ? 'hausse de salaire obtenue (+1 000 €)' : 'rien d’obtenu (−400 €)'}`, 'admin');
+      this.push(`Grève générale : ${workers.length} salarié·e·s, ${won ? 'hausse de salaire obtenue (+1 000 €)' : 'rien d’obtenu (−400 €)'}`, 'admin');
     } else if (eventId === 'distance') {
       const hit: Record<SocialClass, number> = { populaire: -0.5, moyenne: -0.2, superieure: -0.1 };
       for (const c of this.list) {
         c.grade = clamp(Math.round((c.grade + hit[c.origin]) * 10) / 10, 0, 20);
-        this.flash(c, `😷 Cours à distance : ${fmtGrade(Math.abs(hit[c.origin]))} point${Math.abs(hit[c.origin]) >= 1 ? 's' : ''} de moyenne en moins`);
+        this.flash(c, `Cours à distance : ${fmtGrade(Math.abs(hit[c.origin]))} point${Math.abs(hit[c.origin]) >= 1 ? 's' : ''} de moyenne en moins`);
       }
-      this.push('😷 Cours à distance : populaire −0,5, moyenne −0,2, supérieure −0,1', 'admin');
+      this.push('Cours à distance : populaire −0,5, moyenne −0,2, supérieure −0,1', 'admin');
     } else if (eventId === 'prof') {
       const hit = (c: Character) => (c.school === 'quartier' ? -0.4 : c.school === 'centre' ? -0.1 : 0);
       const touched = this.list.filter((c) => hit(c) < 0);
       if (!touched.length) return 'Personne en lycée public pour l’instant';
       for (const c of touched) {
         c.grade = clamp(Math.round((c.grade + hit(c)) * 10) / 10, 0, 20);
-        this.flash(c, `🏫 Prof non remplacé : ${fmtGrade(-hit(c))} de moyenne en moins`);
+        this.flash(c, `Prof non remplacé : ${fmtGrade(-hit(c))} de moyenne en moins`);
       }
-      this.push(`🏫 Prof non remplacé : ${touched.length} élève(s) du public touché(s), le privé épargné`, 'admin');
+      this.push(`Prof non remplacé : ${touched.length} élève(s) du public touché(s), le privé épargné`, 'admin');
     } else if (eventId === 'soutien') {
       const pop = this.list.filter((c) => c.origin === 'populaire');
       if (!pop.length) return 'Aucun joueur de classe populaire';
       for (const c of pop) {
         c.grade = clamp(Math.round((c.grade + 0.3) * 10) / 10, 0, 20);
         c.energy = clamp(Math.round((c.energy + 0.3) * 10) / 10, 0, 5);
-        this.flash(c, '📚 Soutien scolaire gratuit : +0,3 de moyenne');
+        this.flash(c, 'Soutien scolaire gratuit : +0,3 de moyenne');
       }
-      this.push(`📚 Soutien scolaire gratuit : ${pop.length} joueur(s) de classe populaire +0,3`, 'admin');
+      this.push(`Soutien scolaire gratuit : ${pop.length} joueur(s) de classe populaire +0,3`, 'admin');
     } else if (eventId === 'bourses') {
       const b = this.list.filter((c) => c.boursier);
       if (!b.length) return 'Aucun boursier pour l’instant (après Parcoursup)';
       for (const c of b) {
         c.budget += 1_500;
-        this.flash(c, '🎓 Bourses revalorisées : +1 500 €');
+        this.flash(c, 'Bourses revalorisées : +1 500 €');
       }
-      this.push(`🎓 Bourses revalorisées : ${b.length} boursier(s) +1 500 €`, 'admin');
+      this.push(`Bourses revalorisées : ${b.length} boursier(s) +1 500 €`, 'admin');
     } else if (eventId === 'reseau') {
       const add: Record<SocialClass, number> = { populaire: 0, moyenne: 1, superieure: 2 };
       for (const c of this.list) {
         c.contacts += add[c.origin];
-        if (add[c.origin]) this.flash(c, `🥂 Soirée chez des amis de tes parents : +${add[c.origin]} contact${add[c.origin] > 1 ? 's' : ''}`);
+        if (add[c.origin]) this.flash(c, `Soirée chez des amis de tes parents : +${add[c.origin]} contact${add[c.origin] > 1 ? 's' : ''}`);
       }
-      this.push('🥂 Soirée réseau : supérieure +2 contacts, moyenne +1, populaire pas invitée', 'admin');
+      this.push('Soirée réseau : supérieure +2 contacts, moyenne +1, populaire pas invitée', 'admin');
     } else if (eventId === 'loyers') {
       const t = this.list.filter((c) => !c.homeOwner && c.housing !== 'parents');
       if (!t.length) return 'Personne ne loue de logement pour l’instant';
       for (const c of t) {
         c.budget -= 800;
-        this.flash(c, '🏠 Hausse des loyers : −800 €');
+        this.flash(c, 'Hausse des loyers : −800 €');
       }
-      this.push(`🏠 Hausse des loyers : ${t.length} locataire(s) −800 €`, 'admin');
+      this.push(`Hausse des loyers : ${t.length} locataire(s) −800 €`, 'admin');
     } else if (eventId === 'inflation') {
       for (const c of this.list) {
         const loss = Math.max(300, Math.round(Math.max(0, c.budget) * 0.08));
         c.budget -= loss;
-        this.flash(c, `🛒 Inflation : −${fmtMoney(loss)}`);
+        this.flash(c, `Inflation : −${fmtMoney(loss)}`);
       }
-      this.push('🛒 Inflation : −8 % de l’épargne (au moins −300 €)', 'admin');
+      this.push('Inflation : −8 % de l’épargne (au moins −300 €)', 'admin');
     } else if (eventId === 'accident') {
       const c = this.list[Math.floor(this.rnd() * this.list.length)]!;
       const cushioned = c.budget >= 10_000;
       c.budget -= 3_000;
       c.energy = clamp(Math.round((c.energy - (cushioned ? 0.3 : 1)) * 10) / 10, 0, 5);
       c.path.push({ year: this.step.slide.title, kind: 'event', text: 'Accident de la vie' });
-      this.flash(c, cushioned ? '🚑 Accident : −3 000 €, mais l’épargne amortit le choc' : '🚑 Accident : −3 000 € et −1 énergie');
-      this.pop(c, '🚑 −3 000 €', 'bad');
-      this.push(`🚑 Accident de la vie : ${this.nameOf(c)} (${CLASS_LABELS[c.origin].toLowerCase()})${cushioned ? ', amorti par l’épargne' : ''}`, 'admin');
+      this.flash(c, cushioned ? 'Accident : −3 000 €, mais l’épargne amortit le choc' : 'Accident : −3 000 € et −1 énergie');
+      this.pop(c, '−3 000 €', 'bad');
+      this.push(`Accident de la vie : ${this.nameOf(c)} (${CLASS_LABELS[c.origin].toLowerCase()})${cushioned ? ', amorti par l’épargne' : ''}`, 'admin');
     } else if (eventId === 'prime') {
       const workers = this.list.filter((c) => c.job && c.job !== 'chomage');
       if (!workers.length) return 'Personne ne travaille pour l’instant (à déclencher dans la vie active)';
       for (const c of workers) {
         const amount = c.job === 'cadre' || c.job === 'chef' ? 2_500 : 800;
         c.budget += amount;
-        this.flash(c, `🎁 Prime de fin d’année : +${fmtMoney(amount)}`);
+        this.flash(c, `Prime de fin d’année : +${fmtMoney(amount)}`);
       }
-      this.push(`🎁 Prime de fin d’année : ${workers.length} salarié·e·s (cadres +2 500 €, autres +800 €)`, 'admin');
+      this.push(`Prime de fin d’année : ${workers.length} salarié·e·s (cadres +2 500 €, autres +800 €)`, 'admin');
     } else if (eventId === 'loto') {
       const c = this.list[Math.floor(this.rnd() * this.list.length)]!;
       c.budget += 10_000;
       c.path.push({ year: this.step.slide.title, kind: 'event', text: 'Coup de chance : 10 000 €' });
-      this.flash(c, '🍀 Coup de chance : tu gagnes 10 000 €');
-      this.pop(c, '🍀 +10 000 €', 'good');
-      this.push(`🍀 Coup de chance : ${this.nameOf(c)} (${CLASS_LABELS[c.origin].toLowerCase()}) gagne 10 000 €`, 'admin');
+      this.flash(c, 'Coup de chance : tu gagnes 10 000 €');
+      this.pop(c, '+10 000 €', 'good');
+      this.push(`Coup de chance : ${this.nameOf(c)} (${CLASS_LABELS[c.origin].toLowerCase()}) gagne 10 000 €`, 'admin');
     } else return 'Événement inconnu';
     this.changed();
     return null;
@@ -1139,8 +1139,8 @@ export class ExposeGame {
       c.school = patch.school;
     }
     if (!changes.length) return 'Rien à modifier';
-    this.flash(c, '✏️ La régie a modifié ta situation');
-    this.push(`✏️ ${this.nameOf(c)} : ${changes.join(', ')}`, 'admin');
+    this.flash(c, 'La régie a modifié ta situation');
+    this.push(`${this.nameOf(c)} : ${changes.join(', ')}`, 'admin');
     this.changed();
     return null;
   }
@@ -1213,7 +1213,7 @@ export class ExposeGame {
             : move < 0
               ? `Né·e en ${CLASS_LABELS[c.origin].toLowerCase()}, tu as descendu : un coup dur suffit.`
               : f.ascending
-                ? 'Tu es en train de monter ⭐ : encore quelques années à ce poste pour changer de classe.'
+                ? 'Tu es en train de monter : encore quelques années à ce poste pour changer de classe.'
                 : `Tu restes dans la ${CLASS_LABELS[c.origin].toLowerCase()}, comme la plupart des joueurs.`,
       };
     }
@@ -1268,11 +1268,11 @@ export class ExposeGame {
       tokens: c.tokens,
       decision: {
         id: year.decision.id,
-        emoji: year.decision.emoji,
+        icon: year.decision.icon,
         title: year.decision.title,
         text: year.decision.text,
         choice: c.choice,
-        options: this.optionsFor(c, year).map((o) => ({ id: o.id, emoji: o.emoji, label: o.label, hint: costHint(c, o, year.stage), locked: lockReason(c, o, ctx) })),
+        options: this.optionsFor(c, year).map((o) => ({ id: o.id, icon: o.icon, label: o.label, hint: costHint(c, o, year.stage), locked: lockReason(c, o, ctx) })),
       },
       mini: miniView(c, year),
       phase: open ? 'open' : 'report',
@@ -1284,14 +1284,14 @@ export class ExposeGame {
   private psView(c: Character, kind: 'parcoursup' | 'parcoursupResults' | 'parcoursupFinal') {
     const cap = capacities(this.list.length);
     const vis = FORMATION_IDS.filter((f) => visible(c, f, this.reform));
-    const results = (this.ps?.results.get(c.id) ?? []).map((r) => ({ formation: r.formation, label: FORMATIONS[r.formation].label, emoji: FORMATIONS[r.formation].emoji, status: r.status, rank: r.rank }));
+    const results = (this.ps?.results.get(c.id) ?? []).map((r) => ({ formation: r.formation, label: FORMATIONS[r.formation].label, icon: FORMATIONS[r.formation].icon, status: r.status, rank: r.rank }));
     const f = this.psFinal?.get(c.id);
     return {
       phase: kind === 'parcoursup' ? ('wishes' as const) : kind === 'parcoursupResults' ? ('results' as const) : ('final' as const),
       eligible: this.eligiblePs(c),
       formations: vis.map((id) => {
         const fo = FORMATIONS[id];
-        return { id, label: fo.label, emoji: fo.emoji, hint: fo.hint, selective: fo.selective, capacity: cap[id], cost: fo.cost > 0 ? familyShare(c, fo.cost) : fo.cost, locked: eligibility(c, id) };
+        return { id, label: fo.label, icon: fo.icon, hint: fo.hint, selective: fo.selective, capacity: cap[id], cost: fo.cost > 0 ? familyShare(c, fo.cost) : fo.cost, locked: eligibility(c, id) };
       }),
       hidden: FORMATION_IDS.length - vis.length,
       canAskBourse: c.origin !== 'superieure',
@@ -1302,7 +1302,7 @@ export class ExposeGame {
       response: this.accepted.get(c.id) ?? (this.responded.has(c.id) ? 'wait' : null),
       final:
         kind === 'parcoursupFinal' && f
-          ? { formation: f === 'vie_active' ? null : f, label: f === 'vie_active' ? 'Vie active' : FORMATIONS[f].label, emoji: f === 'vie_active' ? '🧰' : FORMATIONS[f].emoji, text: this.psFinalText.get(c.id) ?? '' }
+          ? { formation: f === 'vie_active' ? null : f, label: f === 'vie_active' ? 'Vie active' : FORMATIONS[f].label, icon: f === 'vie_active' ? 'toolbox' : FORMATIONS[f].icon, text: this.psFinalText.get(c.id) ?? '' }
           : null,
     };
   }
@@ -1311,7 +1311,7 @@ export class ExposeGame {
     const out = this.jobOutcome?.get(c.id);
     return {
       phase: this.jobOutcome ? ('result' as const) : ('aim' as const),
-      options: STRATEGIES.map((s) => ({ id: s.id, emoji: s.emoji, label: s.label, hint: s.hint, locked: strategyLock(c, s.id) })),
+      options: STRATEGIES.map((s) => ({ id: s.id, icon: s.icon, label: s.label, hint: s.hint, locked: strategyLock(c, s.id) })),
       choice: this.strategies.get(c.id) ?? null,
       employability: Math.round(clamp(employability(c, this.config.addressEffect), 0, 1) * 100),
       result: out && c.job ? { job: c.job, label: JOB_LABEL[c.job], text: out.text, tone: out.tone } : null,
@@ -1330,7 +1330,7 @@ export class ExposeGame {
       return {
         id: c.id,
         displayName: m.map((x) => x.displayName).join(' & ') || '?',
-        avatar: m[0]?.avatar ?? '🙂',
+        avatar: m[0]?.avatar ?? 'p:00000000',
         color: m[0]?.color ?? 'violet',
         connected: m.some((x) => x.connected),
         origin: c.origin,
@@ -1427,7 +1427,7 @@ export class ExposeGame {
           mini: MINI_TITLES[year.id] ?? null,
           informed: year.id === 'terminale' || year.id === 'premiere' ? list.filter((c) => c.info).length : null,
           choices: counts
-            ? year.decision.options.filter((o) => counts.get(o.id)).map((o) => ({ label: o.label, emoji: o.emoji, count: counts.get(o.id)! }))
+            ? year.decision.options.filter((o) => counts.get(o.id)).map((o) => ({ label: o.label, icon: o.icon, count: counts.get(o.id)! }))
             : null,
           averages: byOrigin((c) => c.grade, 'avg'),
         };
@@ -1469,7 +1469,7 @@ export class ExposeGame {
           total: list.length,
           bourses: list.filter((c) => c.stats.askedBourse).length,
           hiddenPrepa: list.filter((c) => c.stats.hiddenSelective).length,
-          formations: FORMATION_IDS.map((id) => ({ id, label: FORMATIONS[id].label, emoji: FORMATIONS[id].emoji, capacity: cap[id], demand: list.filter((c) => this.wishes.get(c.id)?.includes(id)).length })),
+          formations: FORMATION_IDS.map((id) => ({ id, label: FORMATIONS[id].label, icon: FORMATIONS[id].icon, capacity: cap[id], demand: list.filter((c) => this.wishes.get(c.id)?.includes(id)).length })),
         };
       }
       case 'parcoursupResults': {
@@ -1483,7 +1483,7 @@ export class ExposeGame {
           formations: FORMATION_IDS.map((id) => ({
             id,
             label: FORMATIONS[id].label,
-            emoji: FORMATIONS[id].emoji,
+            icon: FORMATIONS[id].icon,
             capacity: cap[id],
             admis: all.filter((r) => r.formation === id && r.status === 'admis').length,
             attente: all.filter((r) => r.formation === id && r.status === 'attente').length,
@@ -1496,7 +1496,7 @@ export class ExposeGame {
         const fin = this.psFinal ?? new Map();
         return {
           kind: 'parcoursupFinal',
-          formations: FORMATION_IDS.map((id) => ({ id, label: FORMATIONS[id].label, emoji: FORMATIONS[id].emoji, capacity: cap[id], selective: id === 'prepa' || id === 'prepa_privee' || id === 'iep' || id === 'ecole', players: list.filter((c) => fin.get(c.id) === id).map((c) => c.id) })),
+          formations: FORMATION_IDS.map((id) => ({ id, label: FORMATIONS[id].label, icon: FORMATIONS[id].icon, capacity: cap[id], selective: id === 'prepa' || id === 'prepa_privee' || id === 'iep' || id === 'ecole', players: list.filter((c) => fin.get(c.id) === id).map((c) => c.id) })),
           vieActive: list.filter((c) => fin.get(c.id) === 'vie_active').map((c) => c.id),
           selectiveByOrigin: byOrigin((c) => (c.formation === 'prepa' || c.formation === 'prepa_privee' || c.formation === 'iep' || c.formation === 'ecole' ? 1 : 0)),
         };
