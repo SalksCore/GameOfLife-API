@@ -43,6 +43,13 @@
       "when": 1795454474894,
       "tag": "0005_admin_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795455476166,
+      "tag": "0006_player_pair_code",
+      "breakpoints": true
     }
   ]
 }

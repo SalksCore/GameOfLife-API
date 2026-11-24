@@ -581,6 +581,8 @@ export interface ClientToServerEvents {
   'room:leave': (cb: AckFn) => void;
   /** Binôme : demander, accepter, refuser, se séparer */
   'room:pair': (input: { action: 'request' | 'accept' | 'decline' | 'leave'; playerId: string | null }, cb: AckFn) => void;
+  /** Binôme avec le code imprimé sur la fiche du partenaire (même si son téléphone est éteint) */
+  'room:pairCode': (input: { code: string }, cb: AckFn) => void;
   'chat:send': (input: { text: string }, cb: AckFn) => void;
   'game:input': (input: GameInput, cb: AckFn) => void;
 }

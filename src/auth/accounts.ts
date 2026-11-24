@@ -128,6 +128,24 @@ export function generatePassword(): string {
   return out;
 }
 
+// Code binôme : 6 caractères en majuscules, sans ambiguïté (affiché K7M-4PZ)
+const PAIR_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+/** Code binôme libre (vérifie qu'aucun autre joueur ne l'a). */
+export async function generatePairCode(): Promise<string> {
+  for (;;) {
+    let code = '';
+    for (let i = 0; i < 6; i++) code += PAIR_ALPHABET[randomInt(PAIR_ALPHABET.length)];
+    const [taken] = await db.select({ id: players.id }).from(players).where(eq(players.pairCode, code)).limit(1);
+    if (!taken) return code;
+  }
+}
+
+/** « k7m-4pz » -> « K7M4PZ » */
+export function normalizePairCode(input: string): string {
+  return input.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+}
+
 /** Ce qu'un joueur tape, ramené à la forme générée (espaces, tirets et majuscules retirés). */
 export function normalizePassword(input: string): string {
   return input.replace(/[\s-]+/g, '').toLowerCase();

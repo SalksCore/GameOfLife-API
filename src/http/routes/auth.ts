@@ -23,6 +23,8 @@ export const publicPlayer = (p: Player) => ({
   color: p.color,
   gamesPlayed: p.gamesPlayed,
   createdAt: p.createdAt,
+  /** Son propre code binôme (renvoyé uniquement au joueur lui-même) */
+  pairCode: p.pairCode,
 });
 
 async function playerProfile(id: string) {

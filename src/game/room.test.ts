@@ -77,6 +77,31 @@ describe('Room', () => {
     vi.useRealTimers();
   });
 
+  it('binôme par code : le partenaire hors ligne est ajouté et reste tant que son binôme est là', async () => {
+    vi.useFakeTimers();
+    const { room, player, states } = setup(3);
+    const [a, b] = [player(1), player(2)];
+    room.join(a);
+    expect(room.pairWithCode(a.id, a)).toMatch(/propre code/);
+    expect(room.pairWithCode(a.id, b)).toBeNull();
+    const view = states.get(a.id)!;
+    expect(view.pairing.partnerId).toBe(b.id);
+    expect(view.players.find((p) => p.id === b.id)?.connected).toBe(false);
+    // Personne ne le retire : son partenaire joue pour deux
+    vi.advanceTimersByTime(5_000);
+    expect(states.get(a.id)!.players).toHaveLength(2);
+    // Il se connecte plus tard : il retrouve la partie et son binôme
+    expect(room.join(b)).toBeNull();
+    expect(states.get(b.id)!.pairing.partnerId).toBe(a.id);
+    expect(room.pairWithCode(a.id, player(4))).toMatch(/déjà en binôme/);
+    // Séparés alors que B est hors ligne : B quitte la salle d'attente
+    room.disconnect(b.id);
+    room.pairAction(a.id, 'leave', null);
+    await Promise.resolve();
+    expect(states.get(a.id)!.players.map((p) => p.id)).toEqual([a.id]);
+    vi.useRealTimers();
+  });
+
   it('le chat est diffusé à tous les membres, la fermeture prévient les joueurs', () => {
     const { room, player, chats, notices, states } = setup();
     const [a, b] = [player(1), player(2)];

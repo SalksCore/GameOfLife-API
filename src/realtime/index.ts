@@ -1,5 +1,5 @@
 import type { IncomingMessage } from 'node:http';
-import { inArray, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { Server, type Namespace, type Socket } from 'socket.io';
 import { z } from 'zod';
 import { findAccount } from '../auth/accounts.js';
@@ -57,6 +57,7 @@ const schemas = {
   kick: z.object({ roomId: uuid, playerId: uuid }),
   setRole: z.object({ roomId: uuid, playerId: uuid, role: z.enum(SOCIAL_CLASSES).nullable() }),
   adminPair: z.object({ roomId: uuid, playerId: uuid, partnerId: uuid.nullable() }),
+  pairCode: z.object({ code: z.string().max(20).transform((c) => c.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()).pipe(z.string().regex(/^[A-Z0-9]{6}$/)) }),
   pair: z.object({ action: z.enum(['request', 'accept', 'decline', 'leave']), playerId: uuid.nullable() }),
   configure: z.object({
     roomId: uuid,
@@ -274,6 +275,33 @@ export function createRealtime(log: Logger) {
         const room = manager.roomOf(me.id);
         return result(room ? room.pairAction(me.id, action, playerId) : 'Tu n’es dans aucune partie');
       }),
+    );
+
+    socket.on(
+      'room:pairCode',
+      handle(
+        socket,
+        schemas.pairCode,
+        async ({ code }) => {
+          const [p] = await db
+            .select({ id: players.id, bannedAt: players.bannedAt })
+            .from(players)
+            .where(eq(players.pairCode, code))
+            .limit(1);
+          const partner = p && !p.bannedAt ? await findAccount('player', { id: p.id }) : null;
+          if (!partner) return result('Code binôme inconnu');
+          return result(
+            manager.pairWithCode(me.id, {
+              id: partner.id,
+              username: partner.username,
+              displayName: partner.displayName,
+              avatar: partner.avatar,
+              color: partner.color,
+            }),
+          );
+        },
+        'joinBucket',
+      ),
     );
 
     socket.on(

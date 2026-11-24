@@ -74,6 +74,8 @@ export const players = pgTable('players', {
   /** Identifiant généré : 1re lettre du nom + prénom (ex. Jean Dupont -> djean) */
   username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
+  /** Code binôme personnel, imprimé sur la fiche : un partenaire le saisit pour jouer à deux sur un seul téléphone */
+  pairCode: text('pair_code').unique(),
   /** Option anonyme : prénom = mot tiré au hasard, nom = nombre (ex. « Renard 42 »), aucun nom réel enregistré */
   anonymous: boolean('anonymous').notNull().default(false),
   /** Personnalisation choisie par le joueur (liste fermée côté serveur) */

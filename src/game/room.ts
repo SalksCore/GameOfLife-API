@@ -336,7 +336,9 @@ export class Room {
     m.connected = false;
     this.touch();
     // En salle d'attente, un joueur absent trop longtemps libère sa place
-    if (this.phase === 'lobby') {
+    // (sauf s'il joue en binôme avec quelqu'un de connecté : son partenaire joue pour deux)
+    const partnerOnline = this.members.get(this.pairs.get(playerId) ?? '')?.connected;
+    if (this.phase === 'lobby' && !partnerOnline) {
       this.cancelLeaveTimer(playerId);
       this.leaveTimers.set(
         playerId,
@@ -398,6 +400,27 @@ export class Room {
     return null;
   }
 
+  /**
+   * Binôme par code : le partenaire est ajouté à la partie même s'il n'est pas connecté
+   * (téléphone sans batterie). Avoir son code (sa fiche) vaut accord.
+   */
+  pairWithCode(playerId: string, partner: { id: string; username: string; displayName: string; avatar: string; color: string }): Result {
+    if (this.phase !== 'lobby') return 'Les binômes sont fixés une fois la partie lancée';
+    if (!this.members.has(playerId)) return 'Tu n’es pas dans cette partie';
+    if (partner.id === playerId) return 'C’est ton propre code';
+    if (this.pairs.has(playerId)) return 'Tu joues déjà en binôme';
+    const existing = this.members.get(partner.id);
+    if (existing) {
+      if (this.pairs.has(partner.id)) return 'Ce joueur joue déjà en binôme';
+    } else {
+      if (this.members.size >= this.info.maxPlayers) return 'La partie est complète';
+      // Ajouté hors ligne : il retrouvera la partie s'il se connecte plus tard
+      this.members.set(partner.id, { ...partner, connected: false });
+      this.system(`${partner.displayName} rejoint la partie avec son code binôme`);
+    }
+    return this.makePair(playerId, partner.id);
+  }
+
   /** Régie : former ou défaire un binôme */
   adminPair(playerId: string, partnerId: string | null): Result {
     if (this.phase !== 'lobby') return 'Les binômes sont fixés une fois la partie lancée';
@@ -432,6 +455,12 @@ export class Room {
     const p = this.pairs.get(playerId);
     if (p) this.pairs.delete(p);
     this.pairs.delete(playerId);
+    // Un partenaire ajouté hors ligne n'a plus de raison de rester dans la salle d'attente
+    if (p && this.phase === 'lobby' && this.members.has(p) && !this.members.get(p)!.connected) {
+      queueMicrotask(() => {
+        if (this.phase === 'lobby' && !this.pairs.has(p) && !this.members.get(p)?.connected) this.out.leave(p);
+      });
+    }
     for (const [from, to] of [...this.pairRequests]) if (from === playerId || to === playerId) this.pairRequests.delete(from);
   }
 

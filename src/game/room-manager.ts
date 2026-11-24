@@ -101,6 +101,18 @@ export class RoomManager {
     return null;
   }
 
+  /** Binôme par code : le partenaire (peut-être hors ligne) est rattaché à la partie du joueur. */
+  pairWithCode(playerId: string, partner: PlayerIdentity): string | null {
+    const room = this.roomOf(playerId);
+    if (!room) return 'Tu n’es dans aucune partie';
+    const other = this.roomOf(partner.id);
+    if (other && other !== room) return 'Ce joueur est déjà dans une autre partie';
+    const err = room.pairWithCode(playerId, partner);
+    if (err) return err;
+    this.roomOfPlayer.set(partner.id, room.id);
+    return null;
+  }
+
   /** Reprise après reconnexion */
   rejoin(player: PlayerIdentity): void {
     this.roomOf(player.id)?.join(player);

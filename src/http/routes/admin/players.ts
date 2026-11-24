@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gt, ilike, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { cleanName, displayNameOf, generatePassword, generatePseudonym, generateUsername, slug } from '../../../auth/accounts.js';
+import { cleanName, displayNameOf, generatePairCode, generatePassword, generatePseudonym, generateUsername, slug } from '../../../auth/accounts.js';
 import { hashPassword } from '../../../auth/password.js';
 import { revokeAllSessions } from '../../../auth/tokens.js';
 import { logAdminAction } from '../../../db/audit.js';
@@ -56,6 +56,7 @@ export const adminPlayer = (p: Player) => ({
   lastName: p.lastName,
   displayName: displayNameOf(p),
   anonymous: p.anonymous,
+  pairCode: p.pairCode,
   gamesPlayed: p.gamesPlayed,
   createdAt: p.createdAt,
   updatedAt: p.updatedAt,
@@ -81,14 +82,15 @@ async function createPlayer(firstName: string | null, lastName: string | null, a
     // Option anonyme : aucun nom réel n'est enregistré, ni dans le compte ni dans le journal
     const names = anonymous ? await generatePseudonym() : { firstName: firstName!, lastName: lastName!, username: await generateUsername(firstName!, lastName!) };
     const { username } = names;
+    const pairCode = await generatePairCode();
     const [created] = await db
       .insert(players)
-      .values({ firstName: names.firstName, lastName: names.lastName, username, anonymous, passwordHash, createdBy: adminId })
+      .values({ firstName: names.firstName, lastName: names.lastName, username, anonymous, passwordHash, pairCode, createdBy: adminId })
       .onConflictDoNothing({ target: players.username })
       .returning();
     if (created) {
       await logAdminAction(adminId, 'player.create', anonymous ? `${username} (option anonyme)` : `${username} (${names.firstName} ${names.lastName})`, { playerId: created.id });
-      return { player: created, password };
+      return { player: created, password, pairCode };
     }
   }
   return null;
@@ -176,7 +178,7 @@ export async function playerRoutes(app: FastifyInstance) {
     if (!created) return reply.status(409).send({ error: 'Impossible de générer un identifiant, réessaie' });
     return reply.status(201).send({
       player: adminPlayer(created.player),
-      credentials: { username: created.player.username, password: created.password },
+      credentials: { username: created.player.username, password: created.password, pairCode: created.pairCode },
     });
   });
 
@@ -190,7 +192,7 @@ export async function playerRoutes(app: FastifyInstance) {
         const created = await createPlayer(null, null, req.account!.id);
         results.push(
           created
-            ? { index, ok: true as const, firstName: created.player.firstName, lastName: created.player.lastName, username: created.player.username, password: created.password }
+            ? { index, ok: true as const, firstName: created.player.firstName, lastName: created.player.lastName, username: created.player.username, password: created.password, pairCode: created.pairCode }
             : { index, ok: false as const, error: 'Pseudonyme impossible à générer' },
         );
         continue;
@@ -211,6 +213,7 @@ export async function playerRoutes(app: FastifyInstance) {
               lastName: created.player.lastName,
               username: created.player.username,
               password: created.password,
+              pairCode: created.pairCode,
             }
           : { index, ok: false as const, error: 'Identifiant impossible à générer' },
       );
@@ -336,16 +339,18 @@ export async function playerRoutes(app: FastifyInstance) {
     const params = idParams.safeParse(req.params);
     if (!params.success) return reply.status(400).send({ error: 'Requête invalide' });
     const password = generatePassword();
+    // Nouvelle fiche = nouveau code binôme (l'ancienne fiche ne sert plus à rien)
+    const pairCode = await generatePairCode();
     const [updated] = await db
       .update(players)
-      .set({ passwordHash: await hashPassword(password), updatedAt: new Date() })
+      .set({ passwordHash: await hashPassword(password), pairCode, updatedAt: new Date() })
       .where(eq(players.id, params.data.id))
       .returning();
     if (!updated) return reply.status(404).send({ error: 'Joueur introuvable' });
     await revokeAllSessions('player', updated.id);
     app.realtime.kickPlayer(updated.id, 'Ton mot de passe a été changé, reconnecte-toi');
     await logAdminAction(req.account!.id, 'player.reset-password', updated.username, { playerId: updated.id });
-    return { player: adminPlayer(updated), credentials: { username: updated.username, password } };
+    return { player: adminPlayer(updated), credentials: { username: updated.username, password, pairCode } };
   });
 
   /**
@@ -367,10 +372,11 @@ export async function playerRoutes(app: FastifyInstance) {
     const credentials = [];
     for (const p of targets) {
       const password = generatePassword();
-      await db.update(players).set({ passwordHash: await hashPassword(password), updatedAt: new Date() }).where(eq(players.id, p.id));
+      const pairCode = await generatePairCode();
+      await db.update(players).set({ passwordHash: await hashPassword(password), pairCode, updatedAt: new Date() }).where(eq(players.id, p.id));
       await revokeAllSessions('player', p.id);
       app.realtime.kickPlayer(p.id, 'Ton mot de passe a été changé, reconnecte-toi');
-      credentials.push({ firstName: p.firstName, lastName: p.lastName, username: p.username, password });
+      credentials.push({ firstName: p.firstName, lastName: p.lastName, username: p.username, password, pairCode });
     }
     await logAdminAction(req.account!.id, 'player.reset-password', `${credentials.length} comptes`, { details: parsed.data.scope === 'never' ? 'Jamais connectés' : 'Tous les comptes actifs' });
     return { credentials };
