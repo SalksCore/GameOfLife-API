@@ -4,12 +4,12 @@ import { z } from 'zod';
 import { displayNameOf } from '../../auth/accounts.js';
 import { db } from '../../db/client.js';
 import { playerLogins, players, type Player } from '../../db/schema.js';
-import { AVATARS, COLORS } from '../../game/avatars.js';
+import { COLORS, isAvatar } from '../../game/avatars.js';
 import { getMaintenance } from '../../settings.js';
 import { sessionRoutes } from './session-routes.js';
 
 const appearanceBody = z
-  .object({ avatar: z.enum(AVATARS), color: z.enum(COLORS) })
+  .object({ avatar: z.string().refine(isAvatar, 'Avatar invalide'), color: z.enum(COLORS) })
   .partial()
   .refine((v) => Object.keys(v).length > 0, 'Rien à modifier');
 

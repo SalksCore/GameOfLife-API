@@ -201,7 +201,7 @@ const DEBRIEFS: DebriefDef[] = [
           'L’école de commerce (11 000 € par an) n’est pas très sélective : elle est surtout chère. La licence est presque gratuite, mais exigeante quand on travaille à côté.',
           bourse.populaire !== null && bourse.populaire < 100 ? `${100 - bourse.populaire} % des joueurs populaires n’ont pas demandé la bourse à laquelle ils avaient droit : c’est le non-recours.` : 'Tous les joueurs populaires ont demandé leur bourse.',
         ],
-        reality: { figure: '−29 %', text: 'Une étude citée par le Sénat rapporte un lien entre un emploi étudiant prenant et une moindre réussite aux examens. Ce constat ne démontre pas, à lui seul, une relation de cause à effet.', source: 'OVE, rapport du Sénat n° 436', cards: ['F20', 'F7'] },
+        reality: { figure: '−29 %', text: 'Une étude citée par le Sénat rapporte un lien entre un emploi étudiant prenant et une moindre réussite aux examens. Ce constat ne démontre pas, à lui seul, une relation de cause à effet.', source: 'OVE (Gruel, 2002), cité par le Sénat (rapport n° 436)', cards: ['F20', 'F7'] },
         verdict: 'Le coût des études transforme une inégalité d’argent en inégalité de temps, puis de diplôme.',
         notes: 'Faire le lien avec la licence abandonnée (R18) si c’est arrivé dans la partie.',
       };

@@ -153,7 +153,7 @@ const STEPS: StepDef[] = [
     who: 'B',
     cards: ['F7'],
     plan: 60,
-    slide: slide('Remise des diplômes', 'Fin de la deuxième partie', [], '« Fin de la deuxième partie. Les inégalités de départ sont devenues des écarts de diplômes. »\nAbandon de licence : « Travailler à mi-temps à côté fait baisser les chances de réussite de 29 %. » (F20)'),
+    slide: slide('Remise des diplômes', 'Fin de la deuxième partie', [], '« Fin de la deuxième partie. Les inégalités de départ sont devenues des écarts de diplômes. »\nAbandon de licence : un emploi d’au moins un mi-temps, sans lien avec les études, va de pair avec une réussite complète aux examens moins fréquente (−29 %). (F20)'),
   },
   {
     id: 'emploi',
@@ -351,5 +351,5 @@ export const DEFAULT_CARDS: FactCard[] = [
   { id: 'F17', title: 'Discrimination à l’embauche', figure: '−32 %', text: 'À CV identique, les candidats d’origine supposée maghrébine reçoivent 32 % de rappels en moins (22,8 % contre 33,3 %), d’après un testing de 9 600 candidatures sur 2 400 offres (2019-2021).', source: 'Insee (2023), testing Dares/IPP/ISM Corum', moment: 'Premier emploi', link: 'Dans le jeu : deux dossiers égaux, un seul poste.' },
   { id: 'F18', title: 'L’effet adresse', figure: '21,2 % / 10,9 %', text: 'Pour un poste de serveur, un candidat domicilié dans un quartier favorisé de Paris obtient un entretien dans 21,2 % des cas, contre 10,9 % s’il vient d’un quartier sensible de Seine-Saint-Denis.', source: 'Onzus et CNRS, Maire-info (2013)', moment: 'Premier emploi', link: 'Dans le jeu : malus d’employabilité pour le lycée de quartier (option).' },
   { id: 'F19', title: 'Les Cordées de la réussite', figure: '152 800', text: 'Les Cordées de la réussite ont accompagné 152 800 élèves l’année précédant le livret 2026 du ministère, contre 80 000 en 2019.', source: 'Ministère de l’Enseignement supérieur (2026)', moment: 'Corriger', link: 'Dans le jeu : il faut 12 de moyenne, et 65 % de réussite.' },
-  { id: 'F20', title: 'Travailler pendant ses études', figure: '−29 %', text: 'Un étudiant qui travaille au moins à mi-temps, plus de six mois par an, dans un emploi sans lien avec ses études, voit ses chances de réussir ses examens baisser de 29 %.', source: 'OVE, rapport du Sénat n° 436 (2009)', moment: '1ʳᵉ année d’études', link: 'Dans le jeu : jusqu’à 3 jetons de job imposés si le budget manque.' },
+  { id: 'F20', title: 'Travailler pendant ses études', figure: '−29 %', text: 'Chez les étudiants qui exercent un emploi sans lien avec leurs études, au moins à mi-temps et plus de six mois par an, la probabilité de réussir la totalité de ses examens est inférieure de 29 % à celle des étudiants sans activité. Pour un emploi plus léger ou irrégulier, l’écart n’est pas statistiquement significatif. C’est une association observée, pas la preuve que l’emploi est seul en cause.', source: 'OVE (enquête Gruel, 2002), cité dans le rapport du Sénat n° 436 (2009)', moment: '1ʳᵉ année d’études', link: 'Dans le jeu : jusqu’à 3 jetons de job imposés si le budget manque.' },
 ];

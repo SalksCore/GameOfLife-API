@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { cleanName, displayNameOf, generatePairCode, generatePassword, generatePseudonym, generateUsername, slug } from '../../../auth/accounts.js';
 import { hashPassword } from '../../../auth/password.js';
 import { revokeAllSessions } from '../../../auth/tokens.js';
+import { COLORS, randomPortrait } from '../../../game/avatars.js';
 import { logAdminAction } from '../../../db/audit.js';
 import { db } from '../../../db/client.js';
 import {
@@ -85,7 +86,18 @@ async function createPlayer(firstName: string | null, lastName: string | null, a
     const pairCode = await generatePairCode();
     const [created] = await db
       .insert(players)
-      .values({ firstName: names.firstName, lastName: names.lastName, username, anonymous, passwordHash, pairCode, createdBy: adminId })
+      .values({
+        firstName: names.firstName,
+        lastName: names.lastName,
+        username,
+        anonymous,
+        passwordHash,
+        pairCode,
+        createdBy: adminId,
+        // Portrait de départ tiré au hasard : deux nouveaux joueurs ne se ressemblent pas dès le premier lancement
+        avatar: randomPortrait(),
+        color: COLORS[Math.floor(Math.random() * COLORS.length)]!,
+      })
       .onConflictDoNothing({ target: players.username })
       .returning();
     if (created) {
