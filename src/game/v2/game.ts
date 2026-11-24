@@ -17,6 +17,7 @@ import {
   type GameExport,
   type GameInput,
   type PlayerGameView,
+  type PlayerPatch,
   type ScreenPlayer,
   type ScreenStep,
   type SocialClass,
@@ -85,6 +86,8 @@ import {
   type ReformId,
   type YearDef,
 } from './years.js';
+
+const EDIT_LABELS = { boursier: 'boursier', info: 'informé·e des filières sélectives', cordees: 'Cordées de la réussite', homeOwner: 'propriétaire' } as const;
 
 export interface GameMember {
   id: string;
@@ -1013,7 +1016,131 @@ export class ExposeGame {
         this.flash(c, won ? '✊ Grève générale : hausse de salaire obtenue (+1 000 €)' : '✊ Grève générale : 4 jours sans salaire, rien d’obtenu (−400 €)');
       }
       this.push(`✊ Grève générale : ${workers.length} salarié·e·s, ${won ? 'hausse de salaire obtenue (+1 000 €)' : 'rien d’obtenu (−400 €)'}`, 'admin');
+    } else if (eventId === 'distance') {
+      const hit: Record<SocialClass, number> = { populaire: -0.5, moyenne: -0.2, superieure: -0.1 };
+      for (const c of this.list) {
+        c.grade = clamp(Math.round((c.grade + hit[c.origin]) * 10) / 10, 0, 20);
+        this.flash(c, `😷 Cours à distance : ${fmtGrade(Math.abs(hit[c.origin]))} point${Math.abs(hit[c.origin]) >= 1 ? 's' : ''} de moyenne en moins`);
+      }
+      this.push('😷 Cours à distance : populaire −0,5, moyenne −0,2, supérieure −0,1', 'admin');
+    } else if (eventId === 'prof') {
+      const hit = (c: Character) => (c.school === 'quartier' ? -0.4 : c.school === 'centre' ? -0.1 : 0);
+      const touched = this.list.filter((c) => hit(c) < 0);
+      if (!touched.length) return 'Personne en lycée public pour l’instant';
+      for (const c of touched) {
+        c.grade = clamp(Math.round((c.grade + hit(c)) * 10) / 10, 0, 20);
+        this.flash(c, `🏫 Prof non remplacé : ${fmtGrade(-hit(c))} de moyenne en moins`);
+      }
+      this.push(`🏫 Prof non remplacé : ${touched.length} élève(s) du public touché(s), le privé épargné`, 'admin');
+    } else if (eventId === 'soutien') {
+      const pop = this.list.filter((c) => c.origin === 'populaire');
+      if (!pop.length) return 'Aucun joueur de classe populaire';
+      for (const c of pop) {
+        c.grade = clamp(Math.round((c.grade + 0.3) * 10) / 10, 0, 20);
+        c.energy = clamp(Math.round((c.energy + 0.3) * 10) / 10, 0, 5);
+        this.flash(c, '📚 Soutien scolaire gratuit : +0,3 de moyenne');
+      }
+      this.push(`📚 Soutien scolaire gratuit : ${pop.length} joueur(s) de classe populaire +0,3`, 'admin');
+    } else if (eventId === 'bourses') {
+      const b = this.list.filter((c) => c.boursier);
+      if (!b.length) return 'Aucun boursier pour l’instant (après Parcoursup)';
+      for (const c of b) {
+        c.budget += 1_500;
+        this.flash(c, '🎓 Bourses revalorisées : +1 500 €');
+      }
+      this.push(`🎓 Bourses revalorisées : ${b.length} boursier(s) +1 500 €`, 'admin');
+    } else if (eventId === 'reseau') {
+      const add: Record<SocialClass, number> = { populaire: 0, moyenne: 1, superieure: 2 };
+      for (const c of this.list) {
+        c.contacts += add[c.origin];
+        if (add[c.origin]) this.flash(c, `🥂 Soirée chez des amis de tes parents : +${add[c.origin]} contact${add[c.origin] > 1 ? 's' : ''}`);
+      }
+      this.push('🥂 Soirée réseau : supérieure +2 contacts, moyenne +1, populaire pas invitée', 'admin');
+    } else if (eventId === 'loyers') {
+      const t = this.list.filter((c) => !c.homeOwner && c.housing !== 'parents');
+      if (!t.length) return 'Personne ne loue de logement pour l’instant';
+      for (const c of t) {
+        c.budget -= 800;
+        this.flash(c, '🏠 Hausse des loyers : −800 €');
+      }
+      this.push(`🏠 Hausse des loyers : ${t.length} locataire(s) −800 €`, 'admin');
+    } else if (eventId === 'inflation') {
+      for (const c of this.list) {
+        const loss = Math.max(300, Math.round(Math.max(0, c.budget) * 0.08));
+        c.budget -= loss;
+        this.flash(c, `🛒 Inflation : −${fmtMoney(loss)}`);
+      }
+      this.push('🛒 Inflation : −8 % de l’épargne (au moins −300 €)', 'admin');
+    } else if (eventId === 'accident') {
+      const c = this.list[Math.floor(this.rnd() * this.list.length)]!;
+      const cushioned = c.budget >= 10_000;
+      c.budget -= 3_000;
+      c.energy = clamp(Math.round((c.energy - (cushioned ? 0.3 : 1)) * 10) / 10, 0, 5);
+      c.path.push({ year: this.step.slide.title, kind: 'event', text: 'Accident de la vie' });
+      this.flash(c, cushioned ? '🚑 Accident : −3 000 €, mais l’épargne amortit le choc' : '🚑 Accident : −3 000 € et −1 énergie');
+      this.pop(c, '🚑 −3 000 €', 'bad');
+      this.push(`🚑 Accident de la vie : ${this.nameOf(c)} (${CLASS_LABELS[c.origin].toLowerCase()})${cushioned ? ', amorti par l’épargne' : ''}`, 'admin');
+    } else if (eventId === 'prime') {
+      const workers = this.list.filter((c) => c.job && c.job !== 'chomage');
+      if (!workers.length) return 'Personne ne travaille pour l’instant (à déclencher dans la vie active)';
+      for (const c of workers) {
+        const amount = c.job === 'cadre' || c.job === 'chef' ? 2_500 : 800;
+        c.budget += amount;
+        this.flash(c, `🎁 Prime de fin d’année : +${fmtMoney(amount)}`);
+      }
+      this.push(`🎁 Prime de fin d’année : ${workers.length} salarié·e·s (cadres +2 500 €, autres +800 €)`, 'admin');
+    } else if (eventId === 'loto') {
+      const c = this.list[Math.floor(this.rnd() * this.list.length)]!;
+      c.budget += 10_000;
+      c.path.push({ year: this.step.slide.title, kind: 'event', text: 'Coup de chance : 10 000 €' });
+      this.flash(c, '🍀 Coup de chance : tu gagnes 10 000 €');
+      this.pop(c, '🍀 +10 000 €', 'good');
+      this.push(`🍀 Coup de chance : ${this.nameOf(c)} (${CLASS_LABELS[c.origin].toLowerCase()}) gagne 10 000 €`, 'admin');
     } else return 'Événement inconnu';
+    this.changed();
+    return null;
+  }
+
+  /** Régie : modifie à la main un paramètre d'un personnage (démonstration en direct) */
+  edit(characterId: string, patch: PlayerPatch): string | null {
+    if (!this.drawn) return 'Les familles ne sont pas encore tirées';
+    const c = this.list.find((x) => x.id === characterId || x.members.includes(characterId));
+    if (!c) return 'Joueur introuvable';
+    const changes: string[] = [];
+    if (patch.budget !== undefined) {
+      changes.push(`argent ${fmtMoney(Math.round(c.budget))} → ${fmtMoney(patch.budget)}`);
+      c.budget = patch.budget;
+    }
+    if (patch.grade !== undefined) {
+      changes.push(`moyenne ${fmtGrade(c.grade)} → ${fmtGrade(patch.grade)}`);
+      c.grade = patch.grade;
+      c.bacGrade = c.bac ? c.bacGrade : patch.grade;
+    }
+    if (patch.contacts !== undefined) {
+      changes.push(`contacts ${c.contacts} → ${patch.contacts}`);
+      c.contacts = patch.contacts;
+    }
+    if (patch.energy !== undefined) {
+      changes.push(`énergie ${fmtGrade(c.energy)} → ${fmtGrade(patch.energy)}`);
+      c.energy = patch.energy;
+    }
+    if (patch.engagement !== undefined) {
+      changes.push(`engagement ${c.engagement} → ${patch.engagement}`);
+      c.engagement = patch.engagement;
+    }
+    for (const key of ['boursier', 'info', 'cordees', 'homeOwner'] as const) {
+      if (patch[key] !== undefined && patch[key] !== c[key]) {
+        changes.push(`${EDIT_LABELS[key]} : ${patch[key] ? 'oui' : 'non'}`);
+        c[key] = patch[key]!;
+      }
+    }
+    if (patch.school !== undefined && patch.school !== c.school) {
+      changes.push(`lycée : ${SCHOOLS[patch.school].name}`);
+      c.school = patch.school;
+    }
+    if (!changes.length) return 'Rien à modifier';
+    this.flash(c, '✏️ La régie a modifié ta situation');
+    this.push(`✏️ ${this.nameOf(c)} : ${changes.join(', ')}`, 'admin');
     this.changed();
     return null;
   }
@@ -1488,8 +1615,16 @@ export class ExposeGame {
         status: statusOf(c, step.kind === 'year' ? yearById(step.ref!)!.label : null),
         done: this.screenPlayers().find((p) => p.id === c.id)?.done ?? false,
         school: SCHOOLS[c.school].name,
+        schoolId: c.school,
         boursier: c.boursier,
         diploma: c.diploma ? DIPLOMA_LABEL[c.diploma] : null,
+        info: c.info,
+        cordees: c.cordees,
+        homeOwner: c.homeOwner,
+        engagement: c.engagement,
+        formation: c.formation ? (c.formation === 'vie_active' ? 'Vie active' : FORMATIONS[c.formation].label) : null,
+        job: c.job ? JOB_LABEL[c.job] : null,
+        bac: c.bac ? (c.mention ? `${c.bac} · ${c.mention}` : c.bac) : null,
       })),
       events: COLLECTIVE_EVENTS,
       reform: this.reform ? (REFORMS.find((r) => r.id === this.reform)?.label ?? null) : null,

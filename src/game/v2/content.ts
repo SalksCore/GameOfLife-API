@@ -317,6 +317,16 @@ export const COLLECTIVE_EVENTS: GameEventInfo[] = [
   { id: 'heritage', emoji: '🏰', label: 'Héritage', description: 'Un joueur au hasard reçoit 20 000 €' },
   { id: 'merite', emoji: '🏅', label: 'Bourse au mérite', description: 'Le meilleur joueur populaire reçoit 3 000 €' },
   { id: 'greve', emoji: '✊', label: 'Grève générale', description: 'Salariés (hors cadres) : hausse obtenue ou jours de salaire perdus' },
+  { id: 'distance', emoji: '😷', label: 'Cours à distance', description: 'Épidémie : sans aide ni chambre à soi, la moyenne baisse plus (populaire −0,5, moyenne −0,2, supérieure −0,1)' },
+  { id: 'prof', emoji: '🏫', label: 'Prof non remplacé', description: 'Lycées de quartier : −0,4 de moyenne (centre-ville −0,1)' },
+  { id: 'soutien', emoji: '📚', label: 'Soutien scolaire gratuit', description: 'Dispositif public : classe populaire +0,3 de moyenne, +0,3 énergie' },
+  { id: 'bourses', emoji: '🎓', label: 'Bourses revalorisées', description: 'Chaque boursier reçoit 1 500 €' },
+  { id: 'reseau', emoji: '🥂', label: 'Soirée réseau', description: 'Le carnet d’adresses des parents : supérieure +2 contacts, moyenne +1, populaire 0' },
+  { id: 'loyers', emoji: '🏠', label: 'Hausse des loyers', description: 'Locataires hors du foyer familial : −800 € (propriétaires épargnés)' },
+  { id: 'inflation', emoji: '🛒', label: 'Inflation', description: 'Les prix montent : −8 % de l’épargne, au moins −300 € pour chacun' },
+  { id: 'accident', emoji: '🚑', label: 'Accident de la vie', description: 'Un joueur au hasard : −3 000 € et −1 énergie (sauf si la famille a 10 000 € de côté)' },
+  { id: 'prime', emoji: '🎁', label: 'Prime de fin d’année', description: 'Salariés : +800 €, cadres et chefs d’entreprise : +2 500 €' },
+  { id: 'loto', emoji: '🍀', label: 'Coup de chance', description: 'Un joueur au hasard gagne 10 000 € (le hasard ne dépend pas de l’origine)' },
 ];
 
 // ================================================================= Cartes « Le saviez-vous » (E5)

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { DEFAULT_CARDS, buildDeck } from './v2/content.js';
+import { COLLECTIVE_EVENTS, DEFAULT_CARDS, buildDeck } from './v2/content.js';
 import { ExposeGame, type GameTimings } from './v2/game.js';
 import {
   DEFAULT_GAME_CONFIG,
@@ -268,7 +268,7 @@ export class Room {
       stepCards: [],
       shownCard: null,
       characters: [],
-      events: [],
+      events: COLLECTIVE_EVENTS,
       reform: null,
     };
   }

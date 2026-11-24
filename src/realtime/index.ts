@@ -54,6 +54,7 @@ const schemas = {
     maxPlayers: z.number().int().min(LIMITS.maxPlayersMin).max(LIMITS.maxPlayersMax),
   }),
   roomId: z.object({ roomId: uuid }),
+  watch: z.object({ roomId: uuid, deck: z.boolean().optional() }),
   kick: z.object({ roomId: uuid, playerId: uuid }),
   setRole: z.object({ roomId: uuid, playerId: uuid, role: z.enum(SOCIAL_CLASSES).nullable() }),
   adminPair: z.object({ roomId: uuid, playerId: uuid, partnerId: uuid.nullable() }),
@@ -81,6 +82,24 @@ const schemas = {
     amount: z.number().int().min(-LIMITS.giveMax).max(LIMITS.giveMax),
   }),
   event: z.object({ roomId: uuid, eventId: z.string().min(1).max(40) }),
+  editPlayer: z.object({
+    roomId: uuid,
+    characterId: uuid,
+    patch: z
+      .object({
+        budget: z.number().int().min(-1_000_000).max(10_000_000),
+        grade: z.number().min(0).max(20),
+        contacts: z.number().int().min(0).max(50),
+        energy: z.number().min(0).max(5),
+        engagement: z.number().int().min(0).max(20),
+        boursier: z.boolean(),
+        info: z.boolean(),
+        cordees: z.boolean(),
+        homeOwner: z.boolean(),
+        school: z.enum(['quartier', 'centre', 'prive', 'elite']),
+      })
+      .partial(),
+  }),
   input: z.discriminatedUnion('type', [
     z.object({ type: z.literal('tokens'), tokens: z.record(z.string().max(20), z.number().int().min(0).max(6)) }),
     z.object({ type: z.literal('decide'), optionId: z.string().min(1).max(40) }),
@@ -94,6 +113,8 @@ const schemas = {
   ]),
 };
 const watchRoom = (roomId: string) => `watch:${roomId}`;
+/** Tablettes Stream Deck branchées sur une partie */
+const deckRoom = (roomId: string) => `deck:${roomId}`;
 
 function isAllowedOrigin(req: IncomingMessage): boolean {
   const origin = req.headers.origin;
@@ -131,6 +152,12 @@ export function createRealtime(log: Logger) {
 
   // Écrans et régies suivant une partie : mises à jour regroupées (≈ 7 par seconde au maximum)
   const liveTimers = new Map<string, NodeJS.Timeout>();
+  const liveOf = (room: Room) => ({
+    roomId: room.id,
+    screen: room.screenView(),
+    control: room.controlView(),
+    decks: admin.adapter.rooms.get(deckRoom(room.id))?.size ?? 0,
+  });
   const pushLive = (roomId: string) => {
     if (liveTimers.has(roomId)) return;
     liveTimers.set(
@@ -139,7 +166,7 @@ export function createRealtime(log: Logger) {
         liveTimers.delete(roomId);
         const room = manager.get(roomId);
         if (!room) return;
-        admin.to(watchRoom(roomId)).emit('admin:live', { roomId, screen: room.screenView(), control: room.controlView() });
+        admin.to(watchRoom(roomId)).emit('admin:live', liveOf(room));
       }, 150),
     );
   };
@@ -327,6 +354,12 @@ export function createRealtime(log: Logger) {
     log.info({ admin: me.username }, 'Connexion admin');
     socket.emit('admin:stats', stats());
 
+    // Tablette Stream Deck fermée : la régie reprend ses touches
+    socket.on('disconnecting', () => {
+      const ids = [...socket.rooms].filter((r) => r.startsWith('deck:')).map((r) => r.slice(5));
+      if (ids.length) setTimeout(() => ids.forEach(pushLive), 0);
+    });
+
     /** Action sur une partie existante, journalisée */
     const onRoom = async (
       roomId: string,
@@ -379,17 +412,26 @@ export function createRealtime(log: Logger) {
     );
     socket.on(
       'admin:watch',
-      handle(socket, schemas.roomId, ({ roomId }) => {
+      handle(socket, schemas.watch, ({ roomId, deck }) => {
         const room = manager.get(roomId);
         if (!room) return { ok: false, error: 'Partie introuvable' };
         void socket.join(watchRoom(roomId));
-        return { ok: true, data: { roomId, screen: room.screenView(), control: room.controlView() } };
+        if (deck) {
+          void socket.join(deckRoom(roomId));
+          // La régie bascule son affichage dès qu'une tablette se branche
+          pushLive(roomId);
+        }
+        return { ok: true, data: liveOf(room) };
       }),
     );
     socket.on(
       'admin:unwatch',
       handle(socket, schemas.roomId, ({ roomId }) => {
         void socket.leave(watchRoom(roomId));
+        if (socket.rooms.has(deckRoom(roomId))) {
+          void socket.leave(deckRoom(roomId));
+          pushLive(roomId);
+        }
         return result(null);
       }),
     );
@@ -439,6 +481,12 @@ export function createRealtime(log: Logger) {
       'admin:event',
       handle(socket, schemas.event, ({ roomId, eventId }) =>
         onRoom(roomId, 'game.event', (r) => (r.game ? r.game.event(eventId) : 'Aucune partie en cours')),
+      ),
+    );
+    socket.on(
+      'admin:editPlayer',
+      handle(socket, schemas.editPlayer, ({ roomId, characterId, patch }) =>
+        onRoom(roomId, 'game.edit', (r) => (r.game ? r.game.edit(characterId, patch) : 'Aucune partie en cours')),
       ),
     );
     socket.on(

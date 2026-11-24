@@ -477,6 +477,20 @@ export interface GameEventInfo {
 }
 
 /** Joueur vu par la régie */
+/** Régie : modification à la main d'un personnage (chaque champ est facultatif) */
+export interface PlayerPatch {
+  budget?: number;
+  grade?: number;
+  contacts?: number;
+  energy?: number;
+  engagement?: number;
+  boursier?: boolean;
+  info?: boolean;
+  cordees?: boolean;
+  homeOwner?: boolean;
+  school?: 'quartier' | 'centre' | 'prive' | 'elite';
+}
+
 export interface ControlPlayer {
   id: string;
   members: string[];
@@ -488,8 +502,16 @@ export interface ControlPlayer {
   status: string;
   done: boolean;
   school: string;
+  schoolId: 'quartier' | 'centre' | 'prive' | 'elite';
   boursier: boolean;
   diploma: string | null;
+  info: boolean;
+  cordees: boolean;
+  homeOwner: boolean;
+  engagement: number;
+  formation: string | null;
+  job: string | null;
+  bac: string | null;
 }
 
 /** Régie : ce que les joueurs ne voient pas */
@@ -626,6 +648,8 @@ export interface LiveRoom {
   roomId: string;
   screen: ScreenView;
   control: ControlView;
+  /** Tablettes Stream Deck ouvertes sur cette partie */
+  decks?: number;
 }
 
 /** Export des chiffres d'une partie (dossier écrit) */
@@ -648,7 +672,7 @@ export interface AdminClientToServerEvents {
   'admin:closeRoom': (input: { roomId: string }, cb: AckFn) => void;
   'admin:kick': (input: { roomId: string; playerId: string }, cb: AckFn) => void;
   /** Suivre une partie en direct (écran + régie) : réponse immédiate puis événements admin:live */
-  'admin:watch': (input: { roomId: string }, cb: AckFn<LiveRoom>) => void;
+  'admin:watch': (input: { roomId: string; deck?: boolean }, cb: AckFn<LiveRoom>) => void;
   'admin:unwatch': (input: { roomId: string }, cb: AckFn) => void;
   /** Avant le tirage : impose une classe à un joueur (null = tirage au sort) */
   'admin:setRole': (input: { roomId: string; playerId: string; role: SocialClass | null }, cb: AckFn) => void;
@@ -663,6 +687,8 @@ export interface AdminClientToServerEvents {
   'admin:give': (input: { roomId: string; target: string; amount: number }, cb: AckFn) => void;
   /** Déclenche un événement collectif (crise, héritage, bourse au mérite) */
   'admin:event': (input: { roomId: string; eventId: string }, cb: AckFn) => void;
+  /** Modifie à la main un paramètre d'un personnage (argent, moyenne, contacts, énergie, statuts…) */
+  'admin:editPlayer': (input: { roomId: string; characterId: string; patch: PlayerPatch }, cb: AckFn) => void;
   'admin:export': (input: { roomId: string }, cb: AckFn<GameExport>) => void;
 }
 
